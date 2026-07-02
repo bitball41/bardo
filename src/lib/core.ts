@@ -9,6 +9,8 @@ import {
   SESSION_KEY,
   SETTINGS_KEY,
   SHORTCUTS_KEY,
+  TAB_CLOAKS,
+  TAB_GROUPS_KEY,
   SVC_PREFIX,
   SVC_PREFIX_SHERPA,
   SVC_PREFIX_KLYSTRON,
@@ -22,7 +24,9 @@ import type {
   HistoryEntry,
   InternalTab,
   Settings,
+  SavedTabGroup,
   Shortcut,
+  TabGroup,
   TabView,
   ScramjetController,
   ScramjetControllerFactory,
@@ -70,6 +74,8 @@ export interface Snapshot {
   shortcuts: Shortcut[];
   toolbar: ToolbarEntry[];
   customThemes: CustomTheme[];
+  tabGroups: TabGroup[];
+  savedTabGroups: SavedTabGroup[];
   ctrlReady: boolean;
   abLaunched: boolean;
   abBlocked: boolean;
@@ -100,6 +106,8 @@ class BardoCore {
   private shortcuts: Shortcut[] = [];
   private toolbar: ToolbarEntry[] = toEntries(loadToolbar());
   private customThemes: CustomTheme[] = loadCustomThemes();
+  private tabGroups: TabGroup[] = [];
+  private savedTabGroups: SavedTabGroup[] = this.loadSavedTabGroups();
 
   private listeners = new Set<() => void>();
   private snapshot: Snapshot = this.buildSnapshot();
@@ -126,6 +134,7 @@ class BardoCore {
         loading: t.loading,
         active: t.id === this.activeTabId,
         pinned: t.pinned,
+        groupId: t.groupId,
       })),
       activeId: this.activeTabId,
       activeUrl: active?.url ?? "",
@@ -140,6 +149,8 @@ class BardoCore {
       shortcuts: this.shortcuts,
       toolbar: this.toolbar,
       customThemes: this.customThemes,
+      tabGroups: this.tabGroups,
+      savedTabGroups: this.savedTabGroups,
       ctrlReady: this.ctrlReady,
       abLaunched: !!window.__bardoAbLaunched,
       abBlocked: !!window.__bardoAbBlocked,
@@ -160,6 +171,7 @@ class BardoCore {
       ) {
         settings.theme = DEFAULT_SETTINGS.theme;
       }
+      settings.bookmarks = this.sanitizeBookmarks(settings.bookmarks);
       return settings;
     } catch {
       return { ...DEFAULT_SETTINGS };
@@ -180,6 +192,11 @@ class BardoCore {
 
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
     this.settings = { ...this.settings, [key]: value };
+    if (key === "sessionOnly" && value === true) {
+      this.clearSession();
+      this.history = [];
+      this.saveHistory();
+    }
     this.saveSettings();
 
     if (key === "engine") {
@@ -205,6 +222,33 @@ class BardoCore {
     if (this.settings.engine !== prevEngine) this.initEngine();
     if (!this.settings.restoreTabs) this.clearSession();
     this.emit();
+  }
+
+  private sanitizeBookmarks(raw: unknown): Bookmark[] {
+    if (!Array.isArray(raw)) return [];
+    const clean: Bookmark[] = [];
+    const seen = new Set<string>();
+    for (const entry of raw) {
+      if (!entry || typeof entry !== "object") continue;
+      const item = entry as Record<string, unknown>;
+      const title = typeof item.title === "string" ? item.title.trim().slice(0, 100) : "";
+      const url = typeof item.url === "string" ? item.url.trim() : "";
+      try {
+        const parsed = new URL(url);
+        if (!/^https?:$/.test(parsed.protocol) || seen.has(parsed.href)) continue;
+        seen.add(parsed.href);
+        clean.push({
+          id: typeof item.id === "number" && Number.isFinite(item.id) ? item.id : Date.now() + clean.length,
+          title: title || parsed.hostname,
+          url: parsed.href,
+          folder: typeof item.folder === "string" ? item.folder.trim().slice(0, 40) || undefined : undefined,
+          pinnedNewTab: item.pinnedNewTab === true,
+        });
+      } catch {
+      }
+      if (clean.length >= 500) break;
+    }
+    return clean;
   }
 
   private commitToolbar(entries: ToolbarEntry[]) {
@@ -325,6 +369,7 @@ class BardoCore {
       homeBackUrl: null,
       suspended: false,
       pinned: false,
+      groupId: null,
     };
     this.tabs.push(tab);
     this.bindTabLoad(tab);
@@ -334,7 +379,7 @@ class BardoCore {
     return id;
   }
 
-  private openSuspendedTab(meta: { url: string; title?: string; favicon?: string | null; pinned?: boolean }) {
+  private openSuspendedTab(meta: { url: string; title?: string; favicon?: string | null; pinned?: boolean; groupId?: string | null }) {
     const id = this.nextTabId++;
     const iframe = this.createTabIframe();
     const tab: InternalTab = {
@@ -350,6 +395,7 @@ class BardoCore {
       homeBackUrl: null,
       suspended: true,
       pinned: meta.pinned ?? false,
+      groupId: meta.groupId ?? null,
     };
     this.tabs.push(tab);
     this.bindTabLoad(tab);
@@ -361,6 +407,7 @@ class BardoCore {
     if (idx === -1) return;
     this.tabs[idx].iframe.remove();
     this.tabs.splice(idx, 1);
+    this.pruneEmptyTabGroups();
     if (this.tabs.length === 0) {
       this.clearSession();
       this.openTab();
@@ -428,23 +475,185 @@ class BardoCore {
     const srcTab = this.tabs[srcIdx];
     const dstTab = this.tabs[dstIdx];
     if (srcTab.pinned !== dstTab.pinned) return;
+    if (srcTab.groupId !== dstTab.groupId) {
+      if (dstTab.groupId) {
+        this.addTabToGroup(srcId, dstTab.groupId);
+        return;
+      }
+      srcTab.groupId = null;
+      this.pruneEmptyTabGroups();
+    }
     const [moved] = this.tabs.splice(srcIdx, 1);
     this.tabs.splice(dstIdx, 0, moved);
     this.saveSession();
     this.emit();
   }
 
-  private saveSession() {
-    if (this.restoring || !this.settings.restoreTabs) return;
+  createTabGroup(tabId: number, name: string, color = "#7c6cff") {
+    const tab = this.tabs.find((t) => t.id === tabId);
+    const cleanName = name.trim().slice(0, 40);
+    if (!tab || !cleanName) return false;
+    const id = `group:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.tabGroups = [...this.tabGroups, { id, name: cleanName, collapsed: false, color }];
+    tab.groupId = id;
+    this.pruneEmptyTabGroups();
+    this.saveSession();
+    this.emit();
+    return true;
+  }
+
+  addTabToGroup(tabId: number, groupId: string | null) {
+    const tab = this.tabs.find((t) => t.id === tabId);
+    if (!tab || (groupId && !this.tabGroups.some((g) => g.id === groupId))) return;
+    const previousGroupId = tab.groupId;
+    tab.groupId = groupId;
+    if (groupId) {
+      const from = this.tabs.indexOf(tab);
+      const lastGroupIndex = this.tabs.reduce((last, candidate, index) => candidate !== tab && candidate.groupId === groupId ? index : last, -1);
+      if (lastGroupIndex >= 0 && from !== lastGroupIndex + 1) {
+        this.tabs.splice(from, 1);
+        const insertionIndex = from < lastGroupIndex ? lastGroupIndex : lastGroupIndex + 1;
+        this.tabs.splice(insertionIndex, 0, tab);
+      }
+    }
+    this.pruneEmptyTabGroups();
+    this.saveSession();
+    this.emit();
+    return previousGroupId !== groupId;
+  }
+
+  renameTabGroup(groupId: string, name: string) {
+    const cleanName = name.trim().slice(0, 40);
+    if (!cleanName) return false;
+    this.tabGroups = this.tabGroups.map((g) => (g.id === groupId ? { ...g, name: cleanName } : g));
+    this.saveSession();
+    this.emit();
+    return true;
+  }
+
+  setTabGroupColor(groupId: string, color: string) {
+    if (!/^#[0-9a-f]{6}$/i.test(color) || !this.tabGroups.some((group) => group.id === groupId)) return false;
+    this.tabGroups = this.tabGroups.map((group) => group.id === groupId ? { ...group, color } : group);
+    this.saveSession();
+    this.emit();
+    return true;
+  }
+
+  ungroupTabGroup(groupId: string) {
+    if (!this.tabGroups.some((group) => group.id === groupId)) return false;
+    for (const tab of this.tabs) if (tab.groupId === groupId) tab.groupId = null;
+    this.tabGroups = this.tabGroups.filter((group) => group.id !== groupId);
+    this.saveSession();
+    this.emit();
+    return true;
+  }
+
+  closeTabGroup(groupId: string) {
+    const ids = this.tabs.filter((tab) => tab.groupId === groupId).map((tab) => tab.id);
+    if (ids.length === 0) return 0;
+    for (const id of ids) this.closeTab(id);
+    return ids.length;
+  }
+
+  toggleTabGroup(groupId: string) {
+    const group = this.tabGroups.find((g) => g.id === groupId);
+    if (!group) return;
+    const collapsed = !group.collapsed;
+    this.tabGroups = this.tabGroups.map((candidate) => candidate.id === groupId ? { ...candidate, collapsed } : candidate);
+    if (collapsed && this.tabs.some((t) => t.id === this.activeTabId && t.groupId === groupId)) {
+      const next = this.tabs.find((t) => t.groupId !== groupId);
+      if (next) this.activateTab(next.id);
+      else this.openTab();
+    }
+    this.saveSession();
+    this.emit();
+  }
+
+  saveTabGroup(groupId: string) {
+    const group = this.tabGroups.find((g) => g.id === groupId);
+    const tabs = this.tabs.filter((t) => t.groupId === groupId && t.url);
+    if (!group || tabs.length === 0) return false;
+    const saved: SavedTabGroup = {
+      id: `saved:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: group.name,
+      tabs: tabs.map((t) => ({ title: t.title, url: t.url, favicon: t.favicon })),
+      savedAt: Date.now(),
+      color: group.color,
+    };
+    const existing = this.savedTabGroups.find((candidate) => candidate.name.toLocaleLowerCase() === group.name.toLocaleLowerCase());
+    if (existing) saved.id = existing.id;
+    this.savedTabGroups = [saved, ...this.savedTabGroups.filter((candidate) => candidate.id !== saved.id)].slice(0, 20);
+    this.saveSavedTabGroups();
+    this.emit();
+    return true;
+  }
+
+  reopenSavedTabGroup(savedId: string) {
+    const saved = this.savedTabGroups.find((g) => g.id === savedId);
+    if (!saved || saved.tabs.length === 0) return false;
+    const groupId = `group:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.tabGroups = [...this.tabGroups, { id: groupId, name: saved.name, collapsed: false, color: saved.color }];
+    const opened = saved.tabs.map((meta) => this.openSuspendedTab({ ...meta, groupId }));
+    this.activateTab(opened[0].id);
+    this.saveSession();
+    this.emit();
+    return true;
+  }
+
+  deleteSavedTabGroup(savedId: string) {
+    this.savedTabGroups = this.savedTabGroups.filter((g) => g.id !== savedId);
+    this.saveSavedTabGroups();
+    this.emit();
+  }
+
+  private pruneEmptyTabGroups() {
+    const valid = new Set(this.tabGroups.filter((g) => this.tabs.some((t) => t.groupId === g.id)).map((g) => g.id));
+    this.tabGroups = this.tabGroups.filter((g) => valid.has(g.id));
+    for (const tab of this.tabs) if (tab.groupId && !valid.has(tab.groupId)) tab.groupId = null;
+  }
+
+  private loadSavedTabGroups(): SavedTabGroup[] {
     try {
-      const open: { url: string; title: string; favicon: string | null; pinned: boolean }[] = [];
+      const raw = JSON.parse(localStorage.getItem(TAB_GROUPS_KEY) || "[]");
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .filter((g: any) => g && typeof g.id === "string" && typeof g.name === "string" && Array.isArray(g.tabs))
+        .slice(0, 20)
+        .map((g: any) => ({
+          id: g.id.slice(0, 64),
+          name: g.name.trim().slice(0, 40) || "Tab group",
+          savedAt: typeof g.savedAt === "number" ? g.savedAt : Date.now(),
+          color: typeof g.color === "string" && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#7c6cff",
+          tabs: g.tabs
+            .filter((t: any) => t && typeof t.url === "string" && /^https?:\/\//i.test(t.url))
+            .slice(0, 30)
+            .map((t: any) => ({ title: String(t.title || "New Tab").slice(0, 100), url: t.url, favicon: typeof t.favicon === "string" ? t.favicon : null })),
+        }))
+        .filter((g: SavedTabGroup) => g.tabs.length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private saveSavedTabGroups() {
+    try {
+      localStorage.setItem(TAB_GROUPS_KEY, JSON.stringify(this.savedTabGroups));
+    } catch {
+      toast.error("Storage full — tab group couldn't be saved.");
+    }
+  }
+
+  private saveSession() {
+    if (this.restoring || !this.settings.restoreTabs || this.settings.sessionOnly) return;
+    try {
+      const open: { url: string; title: string; favicon: string | null; pinned: boolean; groupId: string | null }[] = [];
       let active = -1;
       for (const t of this.tabs) {
         if (!t.url) continue;
         if (t.id === this.activeTabId) active = open.length;
-        open.push({ url: t.url, title: t.title, favicon: t.favicon, pinned: t.pinned });
+        open.push({ url: t.url, title: t.title, favicon: t.favicon, pinned: t.pinned, groupId: t.groupId });
       }
-      localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs: open, active }));
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs: open, active, groups: this.tabGroups }));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
         toast.error("Storage full — session couldn't be saved.");
@@ -459,7 +668,7 @@ class BardoCore {
   }
   private restoreSession() {
     let data: any = null;
-    if (this.settings.restoreTabs) {
+    if (this.settings.restoreTabs && !this.settings.sessionOnly) {
       try {
         data = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
       } catch {
@@ -472,7 +681,14 @@ class BardoCore {
       return;
     }
     this.restoring = true;
+    this.tabGroups = Array.isArray(data.groups)
+      ? data.groups
+          .filter((g: any) => g && typeof g.id === "string" && typeof g.name === "string")
+          .slice(0, 20)
+          .map((g: any) => ({ id: g.id.slice(0, 64), name: g.name.trim().slice(0, 40) || "Tab group", collapsed: !!g.collapsed, color: typeof g.color === "string" && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#7c6cff" }))
+      : [];
     saved.forEach((m: any) => this.openSuspendedTab(m));
+    this.pruneEmptyTabGroups();
     const idx =
       typeof data.active === "number" && data.active >= 0 && data.active < this.tabs.length
         ? data.active
@@ -657,30 +873,134 @@ class BardoCore {
     window.open(this.proxiedUrl(url), "_blank", "noopener,noreferrer");
   }
 
-  addBookmark(): { status: "added" | "duplicate" | "empty"; title?: string } {
+  createBookmark(input: { title: string; url: string; folder?: string; pinnedNewTab?: boolean }): { status: "added" | "duplicate" | "invalid"; title?: string; id?: number } {
+    let url = "";
+    try {
+      const parsed = new URL(input.url.trim());
+      if (!/^https?:$/.test(parsed.protocol)) return { status: "invalid" };
+      url = parsed.href;
+    } catch {
+      return { status: "invalid" };
+    }
+    if (this.settings.bookmarks.some((bookmark) => bookmark.url === url)) return { status: "duplicate" };
+    const id = Date.now();
+    const title = input.title.trim().slice(0, 100) || new URL(url).hostname;
+    const folder = input.folder?.trim().slice(0, 40) || undefined;
+    this.patchSettings({ bookmarks: [...this.settings.bookmarks, { id, title, url, folder, pinnedNewTab: input.pinnedNewTab === true }] });
+    return { status: "added", title, id };
+  }
+
+  addBookmark(): { status: "added" | "duplicate" | "empty"; title?: string; id?: number } {
     const tab = this.getActiveTab();
     if (!tab?.url) return { status: "empty" };
-    const url = tab.url;
-    if (this.settings.bookmarks.some((b) => b.url === url)) return { status: "duplicate" };
     let title = tab.title;
     if (!title) {
       try {
-        title = new URL(url).hostname;
+        title = new URL(tab.url).hostname;
       } catch {
-        title = url;
+        title = tab.url;
       }
     }
-    this.patchSettings({ bookmarks: [...this.settings.bookmarks, { id: Date.now(), title, url }] });
-    return { status: "added", title };
+    const result = this.createBookmark({ title, url: tab.url });
+    if (result.status === "invalid") return { status: "empty" };
+    if (result.status === "duplicate") return { status: "duplicate" };
+    return { status: "added", title: result.title, id: result.id };
   }
   removeBookmark(id: number) {
     this.patchSettings({ bookmarks: this.settings.bookmarks.filter((b) => b.id !== id) });
+  }
+  updateBookmark(id: number, patch: Partial<Pick<Bookmark, "title" | "url" | "folder" | "pinnedNewTab">>) {
+    const bookmarks = this.settings.bookmarks.map((bookmark) => {
+      if (bookmark.id !== id) return bookmark;
+      const title = patch.title !== undefined ? patch.title.trim().slice(0, 100) || bookmark.title : bookmark.title;
+      const folder = patch.folder !== undefined ? patch.folder.trim().slice(0, 40) || undefined : bookmark.folder;
+      let url = bookmark.url;
+      if (patch.url !== undefined) {
+        try {
+          const parsed = new URL(patch.url.trim());
+          if (/^https?:$/.test(parsed.protocol)) url = parsed.href;
+        } catch {
+        }
+      }
+      return { ...bookmark, ...patch, title, url, folder };
+    });
+    this.patchSettings({ bookmarks });
+  }
+
+  renameBookmarkFolder(folder: string, name: string) {
+    const cleanName = name.trim().slice(0, 40);
+    if (!cleanName || cleanName === folder) return false;
+    this.patchSettings({ bookmarks: this.settings.bookmarks.map((bookmark) => bookmark.folder === folder ? { ...bookmark, folder: cleanName } : bookmark) });
+    return true;
+  }
+
+  removeBookmarkFolder(folder: string) {
+    this.patchSettings({ bookmarks: this.settings.bookmarks.map((bookmark) => bookmark.folder === folder ? { ...bookmark, folder: undefined } : bookmark) });
+  }
+  moveBookmark(id: number, delta: -1 | 1) {
+    const bookmarks = [...this.settings.bookmarks];
+    const from = bookmarks.findIndex((b) => b.id === id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= bookmarks.length) return;
+    const [moved] = bookmarks.splice(from, 1);
+    bookmarks.splice(to, 0, moved);
+    this.patchSettings({ bookmarks });
+  }
+  importBookmarks(raw: unknown): number {
+    const source = Array.isArray(raw) ? raw : raw && typeof raw === "object" && Array.isArray((raw as any).bookmarks) ? (raw as any).bookmarks : null;
+    if (!source) throw new Error("This file doesn't contain a bookmarks list.");
+    const imported = this.sanitizeBookmarks(source);
+    if (imported.length === 0 && source.length > 0) throw new Error("No valid http or https bookmarks were found.");
+    const current = this.settings.bookmarks;
+    const urls = new Set(current.map((b) => b.url));
+    const additions = imported.filter((b) => !urls.has(b.url)).map((b, index) => ({ ...b, id: Date.now() + index }));
+    this.patchSettings({ bookmarks: [...current, ...additions].slice(0, 500) });
+    return additions.length;
+  }
+  openBookmarkFolder(folder: string) {
+    const bookmarks = this.settings.bookmarks.filter((b) => (b.folder || "") === folder);
+    if (bookmarks.length === 0) return 0;
+    bookmarks.forEach((bookmark) => this.openTab(bookmark.url));
+    return bookmarks.length;
+  }
+  openBookmarkFolderAsGroup(folder: string) {
+    const bookmarks = this.settings.bookmarks.filter((bookmark) => (bookmark.folder || "") === folder);
+    if (bookmarks.length === 0) return 0;
+    const groupId = `group:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    this.tabGroups = [...this.tabGroups, { id: groupId, name: folder, collapsed: false, color: "#7c6cff" }];
+    const opened = bookmarks.map((bookmark) => this.openSuspendedTab({ title: bookmark.title, url: bookmark.url, groupId }));
+    this.activateTab(opened[0].id);
+    this.saveSession();
+    this.emit();
+    return opened.length;
   }
   restoreBookmark(bookmark: Bookmark, index: number) {
     if (this.settings.bookmarks.some((b) => b.id === bookmark.id)) return;
     const next = [...this.settings.bookmarks];
     next.splice(Math.min(index, next.length), 0, bookmark);
     this.patchSettings({ bookmarks: next });
+  }
+
+  launchAboutBlank(mode: "session" | "current") {
+    const active = this.getActiveTab();
+    if (mode === "current" && !active?.url) {
+      toast.error("Open a page before launching the current URL.");
+      return false;
+    }
+    const cloak = this.settings.aboutBlankRememberCloak ? TAB_CLOAKS[this.settings.tabCloak] : null;
+    const title = this.settings.aboutBlankTitle.trim() || cloak?.title || "";
+    const favicon = this.settings.aboutBlankFavicon.trim() || cloak?.favicon || "";
+    if (favicon && !/^https?:\/\//i.test(favicon) && !/^data:image\//i.test(favicon)) {
+      toast.error("Use an http(s) URL or image data URL for the launcher favicon.");
+      return false;
+    }
+    const src = mode === "current" ? this.proxiedUrl(active!.url) : location.href;
+    const opened = window.__bardoLaunchAboutBlank?.(src, { title, favicon }) ?? false;
+    window.__bardoAbBlocked = !opened;
+    if (opened) toast.success(mode === "current" ? "Current page launched in about:blank" : "Bardo session launched in about:blank");
+    else toast.error("Popup blocked. Allow popups for Bardo, then try again.");
+    this.emit();
+    return opened;
   }
 
   private checkWisp(url: string, timeoutMs = 8000) {
@@ -976,6 +1296,7 @@ class BardoCore {
   }
 
   private loadHistory(): HistoryEntry[] {
+    if (this.settings.sessionOnly) return [];
     try {
       return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
     } catch {
@@ -984,7 +1305,8 @@ class BardoCore {
   }
   private saveHistory() {
     try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history));
+      if (this.settings.sessionOnly) localStorage.removeItem(HISTORY_KEY);
+      else localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
         toast.error("Storage full — history couldn't be saved.");
@@ -992,7 +1314,7 @@ class BardoCore {
     }
   }
   private addHistory(url: string, title: string) {
-    if (!this.settings.historyEnabled) return;
+    if (!this.settings.historyEnabled || this.settings.sessionOnly) return;
     if (!url || !/^https?:/i.test(url)) return;
     if (this.history[0] && this.history[0].url === url) {
       this.history[0] = { ...this.history[0], ts: Date.now(), title: title || this.history[0].title };
@@ -1017,9 +1339,34 @@ class BardoCore {
     return prior;
   }
   restoreHistory(entries: HistoryEntry[]) {
+    if (this.settings.sessionOnly) return;
     this.history = entries;
     this.saveHistory();
     this.emit();
+  }
+
+  clearBrowsingData() {
+    this.history = [];
+    try {
+      for (const key of [HISTORY_KEY, SESSION_KEY, NOTES_KEY, TODOS_KEY]) localStorage.removeItem(key);
+    } catch {
+    }
+    this.emit();
+  }
+
+  clearAllData() {
+    try {
+      const keys: string[] = [];
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key?.startsWith("bardo-")) keys.push(key);
+      }
+      keys.forEach((key) => localStorage.removeItem(key));
+      sessionStorage.removeItem("bardo-ab");
+      sessionStorage.removeItem("bardo-sw-fix-attempted");
+    } catch {
+    }
+    window.setTimeout(() => window.location.reload(), 250);
   }
 
   private async loadShortcuts() {

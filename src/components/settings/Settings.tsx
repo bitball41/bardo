@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { PANE_BY_ID, SIDEBAR_GROUPS, type PaneId } from "@/lib/panes";
 import { cn } from "@/lib/utils";
@@ -6,8 +6,31 @@ import { SectionBody } from "./sections";
 import { ThemesPane } from "./ThemeEditor";
 import { ToolbarEditor } from "./ToolbarEditor";
 
+const SEARCH_TERMS: Record<PaneId, string> = {
+  themes: "theme colors colour contrast import export live preview dark light custom",
+  appearance: "accent wallpaper background personalize image gradient",
+  widgets: "widgets clock quick links notes weather date todo pomodoro battery new tab",
+  layout: "tabs tab bar position sidebar vertical horizontal collapse",
+  toolbar: "toolbar buttons shortcuts arrange reorder pin menu about:blank",
+  search: "search proxy engine google bing brave startpage duckduckgo",
+  bookmarks: "bookmarks folders reorder import export json pin new tab favicons open folder tabs",
+  history: "history save browsing clear local data privacy",
+  privacy: "privacy history local data clear session only restore tabs storage",
+  cloaker: "cloak tab title favicon disguise canvas drive classroom about:blank launcher popup",
+  safety: "panic key quick exit shortcut redirect escape emergency safe page",
+  advanced: "proxy sherpa engine developer tools eruda cache reload about",
+};
+
 export function Settings({ open, onClose, onOpenHistory }: { open: boolean; onClose: () => void; onOpenHistory: () => void }) {
   const [pane, setPane] = useState<PaneId>("themes");
+  const [query, setQuery] = useState("");
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    return SIDEBAR_GROUPS.flatMap((group) => group.items).filter((item) =>
+      `${item.label} ${item.desc} ${SEARCH_TERMS[item.id]}`.toLowerCase().includes(q),
+    );
+  }, [query]);
 
   return (
     <div id="settings-overlay" className={open ? "open" : ""} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -25,9 +48,32 @@ export function Settings({ open, onClose, onOpenHistory }: { open: boolean; onCl
           </button>
         </div>
 
+        <label className="sm-search">
+          <Icon name="search" size={14} anim="none" />
+          <input
+            value={query}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+            placeholder="Search settings"
+            aria-label="Search settings"
+            autoFocus={false}
+          />
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear settings search">×</button>}
+        </label>
+
         <div className="sm-body">
           <nav className="sm-sidebar">
-            {SIDEBAR_GROUPS.map((g) => (
+            {matches ? (
+              <div className="sm-group">
+                <div className="sm-group-label">Results</div>
+                {matches.map((item) => (
+                  <button key={item.id} className={cn("sm-tab", pane === item.id && "active")} onClick={() => setPane(item.id)}>
+                    <Icon name={item.icon} size={13} anim={pane === item.id ? undefined : "none"} />
+                    <span><strong>{item.label}</strong><small>{item.desc}</small></span>
+                  </button>
+                ))}
+                {matches.length === 0 && <p className="sm-search-empty">No settings match “{query.trim()}”.</p>}
+              </div>
+            ) : SIDEBAR_GROUPS.map((g) => (
               <div key={g.group} className="sm-group">
                 <div className="sm-group-label">{g.group}</div>
                 {g.items.map((t) => (

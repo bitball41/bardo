@@ -61,7 +61,7 @@ function compressWallpaper(file: File): Promise<string> {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const maxDim = 2560;
+      const maxDim = 2048;
       const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -69,13 +69,14 @@ function compressWallpaper(file: File): Promise<string> {
       canvas.width = w;
       canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      let quality = 0.85;
+      const maxEncodedSize = 1_800_000;
+      let quality = 0.8;
       let data = canvas.toDataURL("image/jpeg", quality);
-      while (data.length > 2_500_000 && quality > 0.4) {
-        quality -= 0.15;
+      while (data.length > maxEncodedSize && quality > 0.4) {
+        quality -= 0.1;
         data = canvas.toDataURL("image/jpeg", quality);
       }
-      if (data.length > 2_500_000) reject(new Error("too large"));
+      if (data.length > maxEncodedSize) reject(new Error("too large"));
       else resolve(data);
     };
     img.onerror = () => {
@@ -380,6 +381,19 @@ export function SearchSection() {
 
 export function BookmarksSection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
+  const folders = Array.from(new Set(s.bookmarks.map((bookmark) => bookmark.folder).filter(Boolean) as string[]));
+
+  const exportBookmarks = () => {
+    const blob = new Blob([JSON.stringify({ version: 1, bookmarks: s.bookmarks }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bardo-bookmarks.json";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${s.bookmarks.length} bookmark${s.bookmarks.length === 1 ? "" : "s"}`);
+  };
+
   return (
     <>
       <div className="pane-label">Bookmarks Bar</div>
@@ -387,6 +401,85 @@ export function BookmarksSection() {
         <span className="setting-name">Show bookmarks bar</span>
         <Toggle checked={s.bookmarksVisible} onChange={(v) => core.setSetting("bookmarksVisible", v)} />
       </label>
+      <div className="bm-settings-actions">
+        <label className="action-btn bm-import-btn">
+          <Icon name="attach-file" size={13} />
+          Import JSON
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={async (event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (!file) return;
+              try {
+                const count = core.importBookmarks(JSON.parse(await file.text()));
+                toast.success(count ? `Imported ${count} bookmark${count === 1 ? "" : "s"}` : "No new bookmarks to import");
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "That bookmarks file is invalid.");
+              }
+            }}
+          />
+        </label>
+        <button className="action-btn" onClick={exportBookmarks} disabled={s.bookmarks.length === 0}>
+          <Icon name="copy" size={13} />
+          Export JSON
+        </button>
+      </div>
+
+      <div className="pane-label" style={{ marginTop: 16 }}>Saved Bookmarks</div>
+      {s.bookmarks.length === 0 ? (
+        <div className="settings-empty"><Icon name="bookmark" size={18} /><span>No bookmarks yet</span><small>Save a page from the toolbar or bookmarks bar.</small></div>
+      ) : (
+        <div className="bm-settings-list">
+          {s.bookmarks.map((bookmark, index) => {
+            let favicon = "";
+            try { favicon = `https://www.google.com/s2/favicons?domain=${new URL(bookmark.url).hostname}&sz=32`; } catch {}
+            return (
+              <div className="bm-settings-row" key={bookmark.id}>
+                <span className="bm-settings-favicon">{favicon ? <img src={favicon} alt="" /> : <Icon name="bookmark" size={13} />}</span>
+                <div className="bm-settings-copy">
+                  <input
+                    className="setting-input"
+                    value={bookmark.title}
+                    aria-label={`Bookmark title for ${bookmark.url}`}
+                    onChange={(event) => core.updateBookmark(bookmark.id, { title: event.currentTarget.value })}
+                  />
+                  <input
+                    className="setting-input bm-folder-input"
+                    list="bardo-bookmark-folders"
+                    value={bookmark.folder || ""}
+                    placeholder="No folder"
+                    aria-label={`Folder for ${bookmark.title}`}
+                    onChange={(event) => core.updateBookmark(bookmark.id, { folder: event.currentTarget.value })}
+                  />
+                </div>
+                <div className="bm-row-actions">
+                  <button className={cn("mini-action", bookmark.pinnedNewTab && "active")} title={bookmark.pinnedNewTab ? "Unpin from New Tab" : "Pin to New Tab"} onClick={() => core.updateBookmark(bookmark.id, { pinnedNewTab: !bookmark.pinnedNewTab })}>
+                    <Icon name="home" size={12} />
+                  </button>
+                  <button className="mini-action" title="Move up" disabled={index === 0} onClick={() => core.moveBookmark(bookmark.id, -1)}>↑</button>
+                  <button className="mini-action" title="Move down" disabled={index === s.bookmarks.length - 1} onClick={() => core.moveBookmark(bookmark.id, 1)}>↓</button>
+                  <button className="mini-action" title="Remove bookmark" onClick={() => core.removeBookmark(bookmark.id)}><Icon name="delete" size={12} /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <datalist id="bardo-bookmark-folders">{folders.map((folder) => <option key={folder} value={folder} />)}</datalist>
+      {folders.length > 0 && (
+        <div className="bm-folder-actions">
+          {folders.map((folder) => (
+            <button key={folder} className="action-btn" onClick={() => {
+              const count = core.openBookmarkFolder(folder);
+              toast.success(`Opened ${count} tab${count === 1 ? "" : "s"} from ${folder}`);
+            }}>
+              <Icon name="layout-grid" size={13} /> Open {folder} in tabs
+            </button>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -406,64 +499,161 @@ export function HistorySection({ onOpenHistory }: { onOpenHistory: () => void })
 
 export function PrivacySection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
+  const historyCount = useBardoSelector((snapshot) => snapshot.history.length);
   return (
-    <>
-      <div className="pane-label">Session</div>
-      <ToggleRow name="Restore tabs" hint="Reopen your previous tabs the next time you return" k="restoreTabs" s={s} />
-      <div className="pane-label" style={{ marginTop: 8 }}>About:blank Launcher</div>
-      <ToggleRow name="Enable launcher" hint="Opens the site inside an about:blank tab, hiding the real URL" k="aboutBlankMode" s={s} />
-      <p className="pane-hint" style={{ marginTop: 14 }}>
-        Your panic key also wipes saved tabs, history and notes when triggered.
-      </p>
-    </>
+    <div className="settings-stack">
+      <div className="privacy-summary">
+        <Icon name="key-circle" size={18} />
+        <div><strong>Private by default</strong><span>Your history, tabs, bookmarks, and preferences stay in this browser.</span></div>
+      </div>
+
+      <section className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">What Bardo remembers</div>
+            <p className="settings-card-copy">Control the browsing activity saved between visits.</p>
+          </div>
+        </div>
+        <div className="settings-card-rows">
+          <ToggleRow name="Save history" hint={s.sessionOnly ? "Paused while session-only mode is on" : `${historyCount} saved ${historyCount === 1 ? "visit" : "visits"}`} k="historyEnabled" s={s} />
+          <ToggleRow name="Restore open tabs" hint={s.sessionOnly ? "Paused while session-only mode is on" : "Reopen this session the next time Bardo starts"} k="restoreTabs" s={s} />
+          <ToggleRow name="Session-only mode" hint="Do not save new history or open tabs after this session" k="sessionOnly" s={s} />
+        </div>
+      </section>
+
+      <section className="settings-card settings-card-danger">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">Remove saved data</div>
+            <p className="settings-card-copy">Clear activity only, or reset every local Bardo preference.</p>
+          </div>
+        </div>
+        <div className="privacy-actions">
+          <ConfirmButton className="action-btn" label="Clear browsing data" confirmLabel="Click again to clear history, tabs & notes" icon="delete" onConfirm={() => { core.clearBrowsingData(); toast.success("Local browsing data cleared"); }} />
+          <ConfirmButton className="action-btn danger" label="Reset all Bardo data" confirmLabel="Click again to reset Bardo" icon="badge-alert" onConfirm={() => { toast.info("Clearing Bardo data…"); core.clearAllData(); }} />
+        </div>
+      </section>
+    </div>
   );
 }
 
 export function CloakerSection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
+  const abBlocked = useBardoSelector((snapshot) => snapshot.abBlocked);
   return (
-    <>
-      <div className="pane-label">Tab Cloaker</div>
-      <p className="pane-hint">Changes the browser tab title and favicon to disguise this page.</p>
-      <div className="cloak-grid">
-        {CLOAKS.map(([id, label]) => (
-          <button key={id} className={cn("cloak-btn", s.tabCloak === id && "active")} onClick={() => core.setSetting("tabCloak", id)}>
-            {label}
-          </button>
-        ))}
+    <div className="settings-stack">
+      <div className="privacy-summary">
+        <Icon name="eye" size={18} />
+        <div><strong>Control how Bardo appears</strong><span>Change its tab identity or open it inside a neutral about:blank tab.</span></div>
       </div>
-    </>
+
+      <section className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">Tab identity</div>
+            <p className="settings-card-copy">Replace Bardo's visible tab title and favicon with a familiar preset.</p>
+          </div>
+        </div>
+        <div className="cloak-grid">
+          {CLOAKS.map(([id, label]) => (
+            <button key={id} className={cn("cloak-btn", s.tabCloak === id && "active")} onClick={() => core.setSetting("tabCloak", id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">About:blank window</div>
+            <p className="settings-card-copy">Run Bardo in a separate tab whose address bar only shows about:blank.</p>
+          </div>
+        </div>
+        <div className="settings-card-rows">
+          <ToggleRow name="Launch automatically" hint="Open Bardo this way when popups are allowed" k="aboutBlankMode" s={s} />
+          <ToggleRow name="Use tab identity" hint="Apply the preset above unless custom values are entered" k="aboutBlankRememberCloak" s={s} />
+        </div>
+        <div className="settings-fields">
+          <label className="setting-row privacy-field">
+            <span className="setting-name">Custom title</span>
+            <input className="setting-input" value={s.aboutBlankTitle} placeholder="Use tab identity" maxLength={100} onInput={(event) => core.setSetting("aboutBlankTitle", event.currentTarget.value)} />
+          </label>
+          <label className="setting-row privacy-field">
+            <span className="setting-name">Custom favicon</span>
+            <input className="setting-input" type="url" value={s.aboutBlankFavicon} placeholder="https://example.com/icon.png" onInput={(event) => core.setSetting("aboutBlankFavicon", event.currentTarget.value)} />
+          </label>
+        </div>
+        <div className="privacy-actions">
+          <button className="action-btn" onClick={() => core.launchAboutBlank("session")}><Icon name="layout-grid" size={13} />Launch session</button>
+          <button className="action-btn" onClick={() => core.launchAboutBlank("current")}><Icon name="eye" size={13} />Launch current page</button>
+        </div>
+        {abBlocked && <p className="inline-notice warning"><Icon name="badge-alert" size={13} />Popup blocked. Allow popups for this site and try again.</p>}
+        <p className="settings-card-footnote">You can also add this launcher to the toolbar for one-click access.</p>
+      </section>
+    </div>
   );
 }
 
-export function PanicSection() {
+export function SafetySection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
-    <>
-      <div className="pane-label">Panic Key</div>
-      <p className="pane-hint">Instantly redirects the browser tab when pressed.</p>
-      <div className="setting-row" style={{ marginBottom: 10 }}>
-        <span className="setting-name">Trigger key</span>
-        <select className="setting-select" value={s.panicKey} onChange={(e) => core.setSetting("panicKey", e.currentTarget.value)}>
-          <option value="">Off</option>
-          <option value="Escape">Escape</option>
-          <option value="F1">F1</option>
-          <option value="F2">F2</option>
-          <option value="F3">F3</option>
-          <option value="F4">F4</option>
-        </select>
+    <div className="settings-stack">
+      <div className="privacy-summary safety-summary">
+        <Icon name="badge-alert" size={18} />
+        <div><strong>Leave Bardo in one move</strong><span>Set a special key that redirects immediately and removes saved activity.</span></div>
       </div>
-      <div className="setting-row">
-        <span className="setting-name">Redirect to</span>
-        <input
-          type="url"
-          className="setting-input"
-          placeholder="https://classroom.google.com"
-          value={s.panicUrl}
-          onInput={(e) => core.setSetting("panicUrl", e.currentTarget.value)}
-        />
-      </div>
-    </>
+
+      <section className="settings-card safety-card">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">Panic key</div>
+            <p className="settings-card-copy">Use a function, modifier, navigation, media, or system key so normal typing never triggers it.</p>
+          </div>
+        </div>
+        <div className="setting-row panic-key-row">
+          <div className="setting-info">
+            <span className="setting-name">Trigger key</span>
+            <span className="setting-hint">Letters, numbers, punctuation, and Space are ignored</span>
+          </div>
+          <div className="panic-key-controls">
+            <button
+              type="button"
+              className="setting-input panic-key-capture"
+              aria-label="Capture panic key"
+              onKeyDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const key = event.key;
+                if (key.length <= 1 || ["Unidentified", "Process", "Dead"].includes(key)) {
+                  toast.info("Use a non-character key for the panic shortcut.");
+                  return;
+                }
+                core.setSetting("panicKey", key);
+                toast.success(`${key} is now the panic key`);
+              }}
+            >
+              {s.panicKey || "Press a special key"}
+            </button>
+            {s.panicKey && <button type="button" className="mini-action panic-key-clear" onClick={() => core.setSetting("panicKey", "")}>Clear</button>}
+          </div>
+        </div>
+        <label className="setting-row panic-redirect-row">
+          <span className="setting-name">Redirect destination</span>
+          <input
+            type="url"
+            className="setting-input"
+            placeholder="https://classroom.google.com"
+            value={s.panicUrl}
+            onInput={(e) => core.setSetting("panicUrl", e.currentTarget.value)}
+          />
+        </label>
+        <div className="safety-result">
+          <Icon name="delete" size={14} />
+          <div><strong>What happens</strong><span>Bardo redirects, then clears saved tabs, history, notes, and to-dos.</span></div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -476,13 +666,13 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
       <div className="engine-grid">
         {(
           [
-            ["scramjet", "Scramjet v1", "Default — stable"],
+            ["sherpa", "Sherpa", "Default — owned Scramjet fork"],
+            ["scramjet", "Scramjet v1", "Stable alternative"],
             ["klystron", "Klystron", "Server-side — beta"],
             ["opulent", "OpulentAPI", "Server-side — JS rendering, beta"],
-            ["sherpa", "Sherpa", "Owned Scramjet fork — experimental"],
           ] as [EngineName, string, string][]
         ).map(([id, name, hint]) => (
-          <button key={id} className={cn("engine-btn", (s.engine || "scramjet") === id && "active")} onClick={() => core.setSetting("engine", id)}>
+          <button key={id} className={cn("engine-btn", (s.engine || "sherpa") === id && "active")} onClick={() => core.setSetting("engine", id)}>
             <span className="engine-name">{name}</span>
             <span className="engine-hint">{hint}</span>
           </button>
@@ -541,7 +731,7 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
           <p className="pane-hint" style={{ marginTop: 8 }}>
             The <kbd className="kbd-inline">Alt</kbd> (or <kbd className="kbd-inline">⌥</kbd>) shortcuts work everywhere. The{" "}
             <kbd className="kbd-inline">Ctrl</kbd> (or <kbd className="kbd-inline">⌘</kbd>) ones are reserved by most browsers in a
-            normal tab, so they only take effect when Bardo runs standalone (e.g. the about:blank launcher under Privacy).
+            normal tab, so they only take effect when Bardo runs standalone (e.g. the about:blank launcher under Disguise).
           </p>
         </>
       )}
@@ -580,8 +770,8 @@ export function SectionBody({ pane, compact, onOpenHistory, themesProps }: Secti
       return <PrivacySection />;
     case "cloaker":
       return <CloakerSection />;
-    case "panic":
-      return <PanicSection />;
+    case "safety":
+      return <SafetySection />;
     case "advanced":
       return <AdvancedSection compact={compact} />;
     default:

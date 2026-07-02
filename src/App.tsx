@@ -36,7 +36,7 @@ export default function App() {
 
   useEffect(() => {
     applyThemeToDocument(s, customThemes);
-  }, [s.theme, s.accent, customThemes]);
+  }, [s.theme, s.accent, s.moreContrast, customThemes]);
 
   useEffect(() => {
     const cloak = TAB_CLOAKS[s.tabCloak] || TAB_CLOAKS.none;
@@ -52,7 +52,7 @@ export default function App() {
   }, [s.tabPosition]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--bookmarks-h", s.bookmarksVisible ? "28px" : "0px");
+    document.documentElement.style.setProperty("--bookmarks-h", s.bookmarksVisible ? "36px" : "0px");
   }, [s.bookmarksVisible]);
 
   useEffect(() => {

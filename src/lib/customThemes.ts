@@ -247,6 +247,8 @@ export function applyThemeToDocument(settings: Settings, customThemes: CustomThe
   const custom = settings.theme.startsWith("custom:") ? findCustomTheme(customThemes, settings.theme) : null;
 
   for (const name of INLINE_VARS) root.style.removeProperty(name);
+  if (settings.moreContrast) root.setAttribute("data-contrast", "more");
+  else root.removeAttribute("data-contrast");
 
   if (custom) {
     root.setAttribute("data-theme", custom.mode === "light" ? "light" : "dark");

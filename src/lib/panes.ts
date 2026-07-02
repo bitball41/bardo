@@ -8,9 +8,9 @@ export type PaneId =
   | "privacy"
   | "history"
   | "cloaker"
+  | "safety"
   | "bookmarks"
   | "search"
-  | "panic"
   | "layout"
   | "advanced";
 
@@ -38,16 +38,16 @@ export const SIDEBAR_GROUPS: { group: string; items: PaneMeta[] }[] = [
     group: "Browsing",
     items: [
       { id: "search", label: "Search", icon: "search", desc: "Default search engine", pinnable: true },
-      { id: "bookmarks", label: "Bookmarks", icon: "bookmark", desc: "Show or hide the bookmarks bar", pinnable: true },
+      { id: "bookmarks", label: "Bookmarks", icon: "bookmark", desc: "Organize, pin and move saved pages", pinnable: true },
       { id: "history", label: "History", icon: "history", desc: "Browsing history kept on this device", pinnable: true },
     ],
   },
   {
     group: "Privacy & Safety",
     items: [
-      { id: "privacy", label: "Privacy", icon: "key-circle", desc: "Session restore and stealth launching", pinnable: true },
-      { id: "cloaker", label: "Tab Cloaker", icon: "eye", desc: "Disguise the browser tab", pinnable: true },
-      { id: "panic", label: "Panic Key", icon: "party-popper", desc: "Instantly bail to a safe page", pinnable: true },
+      { id: "privacy", label: "Data & Privacy", icon: "key-circle", desc: "Choose what Bardo stores on this device", pinnable: true },
+      { id: "cloaker", label: "Disguise", icon: "eye", desc: "Tab identity and about:blank launcher", pinnable: true },
+      { id: "safety", label: "Quick Exit", icon: "badge-alert", desc: "Panic key and emergency redirect", pinnable: true },
     ],
   },
   {

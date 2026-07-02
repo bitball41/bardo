@@ -10,6 +10,7 @@ export type ToolbarActionId =
   | "address"
   | "copy-link"
   | "fullscreen"
+  | "aboutblank"
   | "history"
   | "bookmarks"
   | "shortcuts"
@@ -46,6 +47,7 @@ const ACTION_DEFS: ToolbarItemDef[] = [
   { id: "address", label: "Address bar", icon: "search", hint: "Search or enter a URL" },
   { id: "copy-link", label: "Copy link", icon: "copy" },
   { id: "fullscreen", label: "Fullscreen", icon: "maximize-2" },
+  { id: "aboutblank", label: "Launch about:blank", icon: "eye", hint: "Opens the current Bardo session in a cloaked tab" },
   { id: "history", label: "History", icon: "history" },
   { id: "bookmarks", label: "Bookmark page", icon: "bookmark", hint: "Saves the current page" },
   { id: "shortcuts", label: "Shortcuts", icon: "grip" },

@@ -101,11 +101,31 @@ export interface Bookmark {
   id: number;
   title: string;
   url: string;
+  folder?: string;
+  pinnedNewTab?: boolean;
+}
+
+export interface TabGroup {
+  id: string;
+  name: string;
+  collapsed: boolean;
+  color: string;
+}
+
+export interface SavedTabGroup {
+  id: string;
+  name: string;
+  tabs: Array<Pick<TabView, "title" | "url" | "favicon">>;
+  savedAt: number;
+  color: string;
 }
 
 export interface Settings {
   theme: ThemeName | CustomThemeId;
   aboutBlankMode: boolean;
+  aboutBlankTitle: string;
+  aboutBlankFavicon: string;
+  aboutBlankRememberCloak: boolean;
   tabCloak: string;
   bookmarksVisible: boolean;
   bookmarks: Bookmark[];
@@ -118,6 +138,8 @@ export interface Settings {
   ntClock: boolean;
   restoreTabs: boolean;
   historyEnabled: boolean;
+  sessionOnly: boolean;
+  moreContrast: boolean;
   widgetQuickLinks: boolean;
   widgetNotes: boolean;
   widgetWeather: boolean;
@@ -150,6 +172,7 @@ export interface TabView {
   loading: boolean;
   active: boolean;
   pinned: boolean;
+  groupId: string | null;
 }
 
 export interface InternalTab {
@@ -165,11 +188,13 @@ export interface InternalTab {
   homeBackUrl: string | null;
   suspended: boolean;
   pinned: boolean;
+  groupId: string | null;
 }
 
 declare global {
   interface Window {
     __bardoAbLaunched?: boolean;
     __bardoAbBlocked?: boolean;
+    __bardoLaunchAboutBlank?: (src?: string, options?: { title?: string; favicon?: string }) => boolean;
   }
 }

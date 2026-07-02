@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icons";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { THEMES } from "@/lib/constants";
@@ -16,6 +16,8 @@ import {
   THEME_NAME_MAX,
   themeFromBuiltin,
   themeWarnings,
+  sanitizeCustomTheme,
+  applyThemeToDocument,
 } from "@/lib/customThemes";
 import { toast } from "@/lib/toast";
 import { core, useBardoSelector } from "@/lib/useCore";
@@ -143,12 +145,33 @@ function ThemePreviewCard({ draft }: { draft: CustomTheme }) {
 
 function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () => void }) {
   const [draft, setDraft] = useState<CustomTheme>(initial);
+  const [livePreview, setLivePreview] = useState(true);
   const isSaved = useBardoSelector((snapshot) => snapshot.customThemes.some((t) => t.id === initial.id));
+  const settings = useBardoSelector((snapshot) => snapshot.settings);
+  const customThemes = useBardoSelector((snapshot) => snapshot.customThemes);
   const warnings = useMemo(() => themeWarnings(draft.colors), [draft.colors]);
 
   const patch = (p: Partial<CustomTheme>) => setDraft((d) => ({ ...d, ...p }));
   const patchColor = (key: keyof CustomThemeColors, hex: string) =>
     setDraft((d) => ({ ...d, colors: { ...d.colors, [key]: hex } }));
+
+  useEffect(() => {
+    if (!livePreview) return;
+    const previewThemes = [...customThemes.filter((theme) => theme.id !== draft.id), draft];
+    applyThemeToDocument({ ...settings, theme: draft.id }, previewThemes);
+    return () => applyThemeToDocument(settings, customThemes);
+  }, [draft, livePreview, settings, customThemes]);
+
+  const exportTheme = () => {
+    const blob = new Blob([JSON.stringify({ version: 1, theme: draft }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${draft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "bardo-theme"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Theme exported");
+  };
 
   const save = () => {
     if (core.upsertCustomTheme(draft)) {
@@ -167,10 +190,36 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
           <Icon name="arrow-left" size={13} />
           Back to themes
         </button>
+        <label className="action-btn te-file-btn">
+          <Icon name="attach-file" size={13} />Import
+          <input type="file" accept="application/json,.json" onChange={async (event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = "";
+            if (!file) return;
+            try {
+              const parsed = JSON.parse(await file.text());
+              const imported = sanitizeCustomTheme(parsed?.theme ?? parsed);
+              if (!imported) throw new Error("Invalid theme file");
+              setDraft(imported);
+              toast.success(`Imported “${imported.name}”`);
+            } catch {
+              toast.error("That theme file is invalid or incomplete.");
+            }
+          }} />
+        </label>
+        <button className="action-btn" onClick={exportTheme}><Icon name="copy" size={13} />Export</button>
       </div>
 
       <div className="pane-label">Preview</div>
       <ThemePreviewCard draft={draft} />
+      <label className="setting-row toggle-row te-live-toggle">
+        <div className="setting-info"><span className="setting-name">Live preview</span><span className="setting-hint">Try changes across Bardo before saving</span></div>
+        <span className="toggle-wrap"><input type="checkbox" className="toggle-input" checked={livePreview} onChange={(event) => setLivePreview(event.currentTarget.checked)} /><span className="toggle-track" /></span>
+      </label>
+      <label className="setting-row toggle-row">
+        <div className="setting-info"><span className="setting-name">More contrast</span><span className="setting-hint">Strengthen borders and muted text throughout the interface</span></div>
+        <span className="toggle-wrap"><input type="checkbox" className="toggle-input" checked={settings.moreContrast} onChange={(event) => core.setSetting("moreContrast", event.currentTarget.checked)} /><span className="toggle-track" /></span>
+      </label>
 
       <div className="pane-label" style={{ marginTop: 16 }}>Name</div>
       <input

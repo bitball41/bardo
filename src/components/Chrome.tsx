@@ -259,6 +259,12 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
             <Icon name="maximize-2" size={15} />
           </button>
         );
+      case "aboutblank":
+        return (
+          <button key={entry.key} className="nav-btn" title="Launch session in about:blank" onClick={() => core.launchAboutBlank("session")}>
+            <Icon name="eye" size={15} />
+          </button>
+        );
       case "history":
         return (
           <button key={entry.key} className="nav-btn" id="btn-history" title="History" onClick={onHistory}>

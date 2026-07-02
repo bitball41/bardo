@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useId, useState } from "react";
 import { Icon } from "@/components/icons";
 import { GooeyInput } from "@/components/ui/gooey-input";
 import { gFav } from "@/lib/constants";
-import { openStealthWindow } from "@/lib/stealth";
+import { toast } from "@/lib/toast";
 import { core, shallowEqual, useBardoSelector } from "@/lib/useCore";
 import type { Shortcut } from "@/lib/types";
 
@@ -118,13 +118,14 @@ function ShortcutForm({
 }
 
 export function NewTab() {
-  const { settings, status, statusWarn, showNewTab, shortcuts, abBlocked } = useBardoSelector(
+  const { settings, status, statusWarn, showNewTab, shortcuts, savedTabGroups, abBlocked } = useBardoSelector(
     (snapshot) => ({
       settings: snapshot.settings,
       status: snapshot.status,
       statusWarn: snapshot.statusWarn,
       showNewTab: snapshot.showNewTab,
       shortcuts: snapshot.shortcuts,
+      savedTabGroups: snapshot.savedTabGroups,
       abBlocked: snapshot.abBlocked,
     }),
     shallowEqual,
@@ -134,8 +135,7 @@ export function NewTab() {
   const [form, setForm] = useState<{ index: number | null } | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const statusLoading = !statusWarn && /loading|setting up|starting|registering|refreshing|clearing/i.test(status);
-  // Normal mode shows the top 6; edit mode reveals all so any can be managed/reordered.
-  const visible = editing ? shortcuts : shortcuts.slice(0, 6);
+  const pinnedBookmarks = settings.bookmarks.filter((bookmark) => bookmark.pinnedNewTab);
 
   return (
     <div id="new-tab" hidden={!showNewTab}>
@@ -202,7 +202,7 @@ export function NewTab() {
       {settings.widgetQuickLinks && (
         <>
           <div id="nt-quicklinks" className={editing ? "editing" : undefined}>
-            {visible.map((sc, i) => (
+            {shortcuts.map((sc, i) => (
               <div
                 key={i}
                 className={`ql-item${editing ? " ql-editing" : ""}${dragIdx === i ? " ql-dragging" : ""}`}
@@ -286,6 +286,38 @@ export function NewTab() {
         />
       )}
 
+      {(pinnedBookmarks.length > 0 || savedTabGroups.length > 0) && (
+        <div className="nt-saved-shelf">
+          {pinnedBookmarks.length > 0 && (
+            <section className="nt-saved-section" aria-label="Pinned bookmarks">
+              <div className="nt-saved-label"><Icon name="bookmark" size={12} />Pinned</div>
+              <div className="nt-saved-row">
+                {pinnedBookmarks.slice(0, 8).map((bookmark) => {
+                  let favicon = "";
+                  try { favicon = `https://www.google.com/s2/favicons?domain=${new URL(bookmark.url).hostname}&sz=32`; } catch {}
+                  return <button key={bookmark.id} className="nt-saved-chip" title={bookmark.url} onClick={() => core.navigate(bookmark.url)}>{favicon ? <img src={favicon} alt="" /> : <Icon name="bookmark" size={12} />}<span>{bookmark.title}</span></button>;
+                })}
+              </div>
+            </section>
+          )}
+          {savedTabGroups.length > 0 && (
+            <section className="nt-saved-section" aria-label="Saved tab groups">
+              <div className="nt-saved-label"><Icon name="layout-grid" size={12} />Saved groups</div>
+              <div className="nt-saved-row">
+                {savedTabGroups.map((group) => (
+                  <div className="nt-saved-group" key={group.id}>
+                    <button className="nt-saved-chip" onClick={() => { core.reopenSavedTabGroup(group.id); toast.success(`Reopened “${group.name}”`); }}>
+                      <Icon name="layout-grid" size={12} /><span>{group.name}</span><small>{group.tabs.length}</small>
+                    </button>
+                    <button className="nt-saved-remove" title={`Delete saved group ${group.name}`} onClick={() => core.deleteSavedTabGroup(group.id)}><Icon name="delete" size={10} /></button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
       <Suspense fallback={null}>
         <div id="nt-widgets-left" className="nt-corner">
           {settings.widgetDate && <DateWidget />}
@@ -300,7 +332,7 @@ export function NewTab() {
       </Suspense>
 
       {abBlocked && (
-        <button className="stealth-launch-btn" style={{ display: "flex" }} onClick={() => openStealthWindow()}>
+        <button className="stealth-launch-btn" style={{ display: "flex" }} onClick={() => core.launchAboutBlank("session")}>
           <Icon name="eye" size={15} />
           Open in stealth tab
         </button>

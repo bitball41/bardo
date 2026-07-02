@@ -114,6 +114,9 @@ export const ACCENTS = [
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   aboutBlankMode: false,
+  aboutBlankTitle: "",
+  aboutBlankFavicon: "",
+  aboutBlankRememberCloak: true,
   tabCloak: "none",
   bookmarksVisible: false,
   bookmarks: [],
@@ -121,11 +124,13 @@ export const DEFAULT_SETTINGS: Settings = {
   panicKey: "",
   panicUrl: "https://classroom.google.com",
   erudaEnabled: false,
-  engine: "scramjet",
+  engine: "sherpa",
   tabPosition: "top",
   ntClock: true,
   restoreTabs: true,
   historyEnabled: true,
+  sessionOnly: false,
+  moreContrast: false,
   widgetQuickLinks: true,
   widgetNotes: false,
   widgetWeather: false,
@@ -148,6 +153,7 @@ export const WEATHER_KEY = "bardo-weather";
 export const SHORTCUTS_KEY = "bardo-shortcuts";
 export const TOOLBAR_KEY = "bardo-toolbar";
 export const CUSTOM_THEMES_KEY = "bardo-custom-themes";
+export const TAB_GROUPS_KEY = "bardo-tab-groups";
 export const HISTORY_MAX = 200;
 
 export function wmo(code: number): { icon: WeatherIcon; text: string } {
