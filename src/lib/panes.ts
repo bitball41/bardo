@@ -12,7 +12,8 @@ export type PaneId =
   | "bookmarks"
   | "search"
   | "layout"
-  | "advanced";
+  | "advanced"
+  | "diagnostics";
 
 export interface PaneMeta {
   id: PaneId;
@@ -53,6 +54,7 @@ export const SIDEBAR_GROUPS: { group: string; items: PaneMeta[] }[] = [
   {
     group: "System",
     items: [
+      { id: "diagnostics", label: "Diagnostics", icon: "check", desc: "Check Bardo's health and fix issues", pinnable: false },
       { id: "advanced", label: "Engine", icon: "file-cog", desc: "Engine, devtools and maintenance", pinnable: true },
     ],
   },

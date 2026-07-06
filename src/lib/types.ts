@@ -173,6 +173,7 @@ export interface TabView {
   active: boolean;
   pinned: boolean;
   groupId: string | null;
+  suspended: boolean;
 }
 
 export interface InternalTab {

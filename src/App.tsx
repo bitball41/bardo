@@ -18,6 +18,9 @@ const HistoryPage = lazy(() =>
 const Settings = lazy(() =>
   import("@/components/settings/Settings").then((module) => ({ default: module.Settings })),
 );
+const DiagnosticsPage = lazy(() =>
+  import("@/components/diagnostics/DiagnosticsPage").then((module) => ({ default: module.DiagnosticsPage })),
+);
 
 export default function App() {
   const { settings: s, abLaunched, customThemes } = useBardoSelector(
@@ -26,6 +29,7 @@ export default function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [fullscreenControlsVisible, setFullscreenControlsVisible] = useState(false);
   const [tabSwitcherOpen, setTabSwitcherOpen] = useState(false);
@@ -126,6 +130,12 @@ export default function App() {
         return;
       }
 
+      if (e.key === "Escape" && diagnosticsOpen) {
+        e.preventDefault();
+        setDiagnosticsOpen(false);
+        return;
+      }
+
       if (e.key === "Escape" && settingsOpen) {
         e.preventDefault();
         setSettingsOpen(false);
@@ -201,7 +211,7 @@ export default function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [s.panicKey, settingsOpen, historyOpen, fullscreen, tabSwitcherOpen]);
+  }, [s.panicKey, settingsOpen, historyOpen, diagnosticsOpen, fullscreen, tabSwitcherOpen]);
 
   if (abLaunched) {
     return (
@@ -253,7 +263,19 @@ export default function App() {
         {settingsOpen && (
           <Suspense fallback={null}>
             <ErrorBoundary>
-              <Settings open onClose={() => setSettingsOpen(false)} onOpenHistory={() => setHistoryOpen(true)} />
+              <Settings
+                open
+                onClose={() => setSettingsOpen(false)}
+                onOpenHistory={() => setHistoryOpen(true)}
+                onOpenDiagnostics={() => setDiagnosticsOpen(true)}
+              />
+            </ErrorBoundary>
+          </Suspense>
+        )}
+        {diagnosticsOpen && (
+          <Suspense fallback={null}>
+            <ErrorBoundary>
+              <DiagnosticsPage open onClose={() => setDiagnosticsOpen(false)} />
             </ErrorBoundary>
           </Suspense>
         )}
