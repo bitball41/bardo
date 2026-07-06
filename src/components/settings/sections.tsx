@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/icons";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
-import { ACCENTS, RECOMMENDED_THEMES, THEME_COLUMNS, WALLPAPER_KEY } from "@/lib/constants";
+import { ACCENTS, ENGINES, RECOMMENDED_THEMES, THEME_COLUMNS, WALLPAPER_KEY } from "@/lib/constants";
 import type { PaneId } from "@/lib/panes";
 import { toast } from "@/lib/toast";
 import { core, useBardoSelector } from "@/lib/useCore";
-import type { CustomTheme, EngineName, Settings as SettingsType, TabPosition, ThemeName } from "@/lib/types";
+import { useDiagnostics } from "@/lib/useDiagnostics";
+import type { CustomTheme, Settings as SettingsType, TabPosition, ThemeName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -657,6 +658,34 @@ export function SafetySection() {
   );
 }
 
+export function DiagnosticsSection({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
+  const d = useDiagnostics();
+  const summary = d.overall === "ok" ? "Healthy" : d.overall === "warn" ? "Minor Issues" : "Needs Attention";
+  const lead = d.overall === "ok" ? "Everything Bardo needs is running normally." : d.issues[0]?.text ?? "Something needs your attention.";
+  return (
+    <div className="settings-stack">
+      <div className={cn("privacy-summary", d.overall !== "ok" && "safety-summary")}>
+        <Icon name={d.overall === "ok" ? "check" : "badge-alert"} size={18} />
+        <div>
+          <strong>{summary}</strong>
+          <span>{lead}</span>
+        </div>
+      </div>
+      <section className="settings-card">
+        <div className="settings-card-head">
+          <div>
+            <div className="settings-card-title">Full diagnostics</div>
+            <p className="settings-card-copy">Connection, proxy engine, service worker, storage, performance and a recent activity log.</p>
+          </div>
+        </div>
+        <button className="action-btn" onClick={onOpenDiagnostics}>
+          <Icon name="arrow-right" size={13} /> Open Diagnostics
+        </button>
+      </section>
+    </div>
+  );
+}
+
 export function AdvancedSection({ compact }: { compact?: boolean }) {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
@@ -664,14 +693,7 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
       <div className="pane-label">Engine</div>
       <p className="pane-hint">Changes take effect after a reload.</p>
       <div className="engine-grid">
-        {(
-          [
-            ["sherpa", "Sherpa", "Default — owned Scramjet fork"],
-            ["scramjet", "Scramjet v1", "Stable alternative"],
-            ["klystron", "Klystron", "Server-side — beta"],
-            ["opulent", "OpulentAPI", "Server-side — JS rendering, beta"],
-          ] as [EngineName, string, string][]
-        ).map(([id, name, hint]) => (
+        {ENGINES.map(({ id, name, hint }) => (
           <button key={id} className={cn("engine-btn", (s.engine || "sherpa") === id && "active")} onClick={() => core.setSetting("engine", id)}>
             <span className="engine-name">{name}</span>
             <span className="engine-hint">{hint}</span>
@@ -743,6 +765,7 @@ export interface SectionBodyProps {
   pane: PaneId;
   compact?: boolean;
   onOpenHistory: () => void;
+  onOpenDiagnostics?: () => void;
   themesProps?: ThemesSectionProps;
 }
 
@@ -750,7 +773,7 @@ export interface SectionBodyProps {
  * Shared pane content used by both the Settings modal and pinned toolbar
  * popovers, so there is exactly one implementation of every control.
  */
-export function SectionBody({ pane, compact, onOpenHistory, themesProps }: SectionBodyProps) {
+export function SectionBody({ pane, compact, onOpenHistory, onOpenDiagnostics, themesProps }: SectionBodyProps) {
   switch (pane) {
     case "themes":
       return <ThemesSection {...themesProps} />;
@@ -772,6 +795,8 @@ export function SectionBody({ pane, compact, onOpenHistory, themesProps }: Secti
       return <CloakerSection />;
     case "safety":
       return <SafetySection />;
+    case "diagnostics":
+      return <DiagnosticsSection onOpenDiagnostics={onOpenDiagnostics ?? (() => {})} />;
     case "advanced":
       return <AdvancedSection compact={compact} />;
     default:

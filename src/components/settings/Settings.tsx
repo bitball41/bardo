@@ -19,9 +19,20 @@ const SEARCH_TERMS: Record<PaneId, string> = {
   cloaker: "cloak tab title favicon disguise canvas drive classroom about:blank launcher popup",
   safety: "panic key quick exit shortcut redirect escape emergency safe page",
   advanced: "proxy sherpa engine developer tools eruda cache reload about",
+  diagnostics: "health status connection network storage performance service worker event log troubleshoot",
 };
 
-export function Settings({ open, onClose, onOpenHistory }: { open: boolean; onClose: () => void; onOpenHistory: () => void }) {
+export function Settings({
+  open,
+  onClose,
+  onOpenHistory,
+  onOpenDiagnostics,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onOpenHistory: () => void;
+  onOpenDiagnostics: () => void;
+}) {
   const [pane, setPane] = useState<PaneId>("themes");
   const [query, setQuery] = useState("");
   const matches = useMemo(() => {
@@ -105,6 +116,10 @@ export function Settings({ open, onClose, onOpenHistory }: { open: boolean; onCl
                 onOpenHistory={() => {
                   onClose();
                   onOpenHistory();
+                }}
+                onOpenDiagnostics={() => {
+                  onClose();
+                  onOpenDiagnostics();
                 }}
               />
             )}

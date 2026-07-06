@@ -1,6 +1,7 @@
 import {
   ACCENTS,
   DEFAULT_SETTINGS,
+  ENGINE_BY_ID,
   HISTORY_KEY,
   HISTORY_MAX,
   NOTES_KEY,
@@ -21,6 +22,7 @@ import {
 import type {
   Bookmark,
   CustomTheme,
+  EngineName,
   HistoryEntry,
   InternalTab,
   Settings,
@@ -46,6 +48,7 @@ import {
 } from "./toolbar";
 import { loadCustomThemes, MAX_CUSTOM_THEMES, sanitizeCustomTheme, saveCustomThemes } from "./customThemes";
 import { toast } from "./toast";
+import { logEvent, recordConnectionSuccess, recordEngineRestart } from "./diagnostics";
 
 declare global {
   interface Window {
@@ -79,6 +82,8 @@ export interface Snapshot {
   ctrlReady: boolean;
   abLaunched: boolean;
   abBlocked: boolean;
+  /** Host of the Wisp server currently in use; null for server-side engines. */
+  wispUrl: string | null;
 }
 
 class BardoCore {
@@ -101,6 +106,7 @@ class BardoCore {
   private activeSWReg: ServiceWorkerRegistration | null = null;
   private swUpdateDebounce: ReturnType<typeof setTimeout> | null = null;
   private swUpdateScheduled = false;
+  private wispUrl: string | null = null;
 
   private history: HistoryEntry[] = this.loadHistory();
   private shortcuts: Shortcut[] = [];
@@ -135,6 +141,7 @@ class BardoCore {
         active: t.id === this.activeTabId,
         pinned: t.pinned,
         groupId: t.groupId,
+        suspended: t.suspended,
       })),
       activeId: this.activeTabId,
       activeUrl: active?.url ?? "",
@@ -154,6 +161,7 @@ class BardoCore {
       ctrlReady: this.ctrlReady,
       abLaunched: !!window.__bardoAbLaunched,
       abBlocked: !!window.__bardoAbBlocked,
+      wispUrl: this.wispUrl,
     };
   }
 
@@ -200,6 +208,8 @@ class BardoCore {
     this.saveSettings();
 
     if (key === "engine") {
+      logEvent(`Switched proxy engine to ${ENGINE_BY_ID[value as EngineName]?.name ?? value}`);
+      recordEngineRestart();
       this.initEngine();
     } else if (key === "restoreTabs") {
       if (value) this.saveSession();
@@ -219,6 +229,7 @@ class BardoCore {
     const bookmarks = this.settings.bookmarks;
     this.settings = { ...DEFAULT_SETTINGS, bookmarks };
     this.saveSettings();
+    logEvent("Settings restored to defaults");
     if (this.settings.engine !== prevEngine) this.initEngine();
     if (!this.settings.restoreTabs) this.clearSession();
     this.emit();
@@ -695,6 +706,7 @@ class BardoCore {
         : 0;
     this.restoring = false;
     this.activateTab(this.tabs[idx].id);
+    logEvent(`Restored ${saved.length} tab${saved.length === 1 ? "" : "s"} from your last session`);
     this.saveSession();
   }
 
@@ -1056,6 +1068,7 @@ class BardoCore {
       : await this.firstReachable(PUBLIC_WISP_SERVERS);
     if (!wispUrl) throw new Error("No Wisp server reachable — check your connection.");
     await this.conn.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
+    this.wispUrl = wispUrl;
     return wispUrl;
   }
 
@@ -1117,6 +1130,8 @@ class BardoCore {
       if (attempt < 3) {
         const delay = attempt * 2000;
         this.setStatus(`Error, retrying in ${delay / 1000}s…`, true);
+        logEvent(`Engine error — retrying (attempt ${attempt + 1} of 3)`, "warn");
+        recordEngineRestart();
         setTimeout(() => this.initEngine(attempt + 1), delay);
       } else if (!sessionStorage.getItem("bardo-sw-fix-attempted")) {
         sessionStorage.setItem("bardo-sw-fix-attempted", "1");
@@ -1125,8 +1140,19 @@ class BardoCore {
       } else {
         sessionStorage.removeItem("bardo-sw-fix-attempted");
         this.setStatus(e.message, true);
+        logEvent(`Engine failed to start: ${e.message}`, "error");
       }
     }
+  }
+
+  /** User-initiated restart of the currently selected engine (not a switch). */
+  async restartEngine() {
+    const name = ENGINE_BY_ID[this.settings.engine]?.name ?? this.settings.engine;
+    logEvent(`Restarting the ${name} engine…`);
+    recordEngineRestart();
+    this.ctrlReady = false;
+    this.emit();
+    await this.initEngine();
   }
 
   private async initScramjet() {
@@ -1215,6 +1241,7 @@ class BardoCore {
   // so the client needs no bare-mux/wisp transport or wasm controller — just the
   // companion service worker (scoped to /klystron/) to catch runtime requests.
   private async initKlystron() {
+    this.wispUrl = null;
     this.setStatus("Starting Klystron…");
     const reg = await this.registerSW("/sw-klystron.js", SVC_PREFIX_KLYSTRON);
     this.scheduleSWUpdate(reg);
@@ -1239,6 +1266,7 @@ class BardoCore {
   // automatic headless-render fallback on the server for JS-heavy pages — no
   // extra client-side wiring needed for that part.
   private async initOpulent() {
+    this.wispUrl = null;
     this.setStatus("Starting OpulentAPI…");
     const reg = await this.registerSW("/sw-opulent.js", SVC_PREFIX_OPULENT);
     this.scheduleSWUpdate(reg);
@@ -1260,6 +1288,7 @@ class BardoCore {
   }
 
   private flushPending() {
+    recordConnectionSuccess(ENGINE_BY_ID[this.settings.engine]?.name ?? this.settings.engine);
     if (this.pendingUrl) {
       const url = this.pendingUrl;
       this.pendingUrl = null;
@@ -1270,6 +1299,8 @@ class BardoCore {
 
   async forceReload() {
     this.setStatus("Clearing cache…");
+    logEvent("Clearing cache and restarting Bardo…", "warn");
+    recordEngineRestart();
     for (const reg of await navigator.serviceWorker.getRegistrations()) {
       if (
         reg.scope.includes(SVC_PREFIX) ||
@@ -1345,12 +1376,32 @@ class BardoCore {
     this.emit();
   }
 
+  /** Keeps only the most recent `keep` history entries. Returns how many were removed. */
+  trimHistory(keep: number): number {
+    const removed = Math.max(0, this.history.length - keep);
+    if (removed > 0) {
+      this.history = this.history.slice(0, keep);
+      this.saveHistory();
+      logEvent(`Trimmed ${removed} old history ${removed === 1 ? "entry" : "entries"}`);
+      this.emit();
+    }
+    return removed;
+  }
+
+  /** Forgets the saved tab session without touching history or other settings. */
+  clearSavedSession() {
+    this.clearSession();
+    logEvent("Saved session cleared");
+    this.emit();
+  }
+
   clearBrowsingData() {
     this.history = [];
     try {
       for (const key of [HISTORY_KEY, SESSION_KEY, NOTES_KEY, TODOS_KEY]) localStorage.removeItem(key);
     } catch {
     }
+    logEvent("Browsing data cleared");
     this.emit();
   }
 

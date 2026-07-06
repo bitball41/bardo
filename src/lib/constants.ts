@@ -1,4 +1,4 @@
-import type { Settings, ThemeName } from "./types";
+import type { EngineName, Settings, ThemeName } from "./types";
 
 export const PUBLIC_WISP_SERVERS = [
   "wss://wisp.mercurywork.shop/wisp/",
@@ -11,6 +11,26 @@ export const SVC_PREFIX = "/scramjet/service/";
 export const SVC_PREFIX_SHERPA = "/sherpa/service/";
 export const SVC_PREFIX_KLYSTRON = "/klystron/";
 export const SVC_PREFIX_OPULENT = "/opulent/";
+
+export interface EngineInfo {
+  id: EngineName;
+  name: string;
+  hint: string;
+  /** Client-side engines run the proxy in-browser over Wisp; server-side engines fetch and rewrite on Bardo's own server. */
+  kind: "client" | "server";
+  version: string;
+  swPath: string;
+  swScope: string;
+}
+
+export const ENGINES: EngineInfo[] = [
+  { id: "sherpa", name: "Sherpa", hint: "Default — owned Scramjet fork", kind: "client", version: "1.1.0-sherpa.2", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
+  { id: "scramjet", name: "Scramjet v1", hint: "Stable alternative", kind: "client", version: "1.1.0", swPath: "/sw.js", swScope: SVC_PREFIX },
+  { id: "klystron", name: "Klystron", hint: "Server-side — beta", kind: "server", version: "in-repo", swPath: "/sw-klystron.js", swScope: SVC_PREFIX_KLYSTRON },
+  { id: "opulent", name: "OpulentAPI", hint: "Server-side — JS rendering, beta", kind: "server", version: "in-repo", swPath: "/sw-opulent.js", swScope: SVC_PREFIX_OPULENT },
+];
+
+export const ENGINE_BY_ID = Object.fromEntries(ENGINES.map((e) => [e.id, e])) as Record<EngineName, EngineInfo>;
 
 export const BARDO_FAVICON =
   "data:image/svg+xml," +
