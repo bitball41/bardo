@@ -34,12 +34,24 @@ function writeJSON(key: string, value: unknown) {
   }
 }
 
+const DIAG_LEVELS: DiagLevel[] = ["info", "success", "warn", "error"];
+
+function isDiagLogEntry(e: unknown): e is DiagLogEntry {
+  if (!e || typeof e !== "object") return false;
+  const entry = e as Record<string, unknown>;
+  return (
+    typeof entry.id === "number" &&
+    typeof entry.ts === "number" &&
+    typeof entry.message === "string" &&
+    typeof entry.level === "string" &&
+    (DIAG_LEVELS as string[]).includes(entry.level)
+  );
+}
+
 function loadLog(): DiagLogEntry[] {
   const raw = readJSON<unknown>(LOG_KEY, []);
   if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((e): e is DiagLogEntry => !!e && typeof (e as any).message === "string" && typeof (e as any).ts === "number")
-    .slice(-LOG_MAX);
+  return raw.filter(isDiagLogEntry).slice(-LOG_MAX);
 }
 
 let log: DiagLogEntry[] = loadLog();

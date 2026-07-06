@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Icon } from "@/components/icons";
 import { useDiagnostics } from "@/lib/useDiagnostics";
 import { cn } from "@/lib/utils";
@@ -46,9 +47,20 @@ function OverviewHero({ overall, issues }: { overall: "ok" | "warn" | "critical"
 
 export function DiagnosticsPage({ open, onClose }: DiagnosticsPageProps) {
   const d = useDiagnostics();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Focused here (rather than from App.tsx) because this page is lazy-loaded:
+  // by the time App's own open-state effect runs, the chunk hasn't mounted yet.
+  useEffect(() => {
+    if (!open) return;
+    const focusable = containerRef.current?.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    focusable?.focus();
+  }, [open]);
 
   return (
-    <div id="diagnostics-page" className={open ? "open" : ""} role="dialog" aria-modal="true" aria-label="Bardo diagnostics">
+    <div ref={containerRef} id="diagnostics-page" className={open ? "open" : ""} role="dialog" aria-modal="true" aria-label="Bardo diagnostics">
       <div className="dx-header">
         <button className="nav-btn" title="Close diagnostics" onClick={onClose}>
           <Icon name="arrow-left" size={15} />

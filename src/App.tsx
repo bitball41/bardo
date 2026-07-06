@@ -101,14 +101,14 @@ export default function App() {
   }, [s.wallpaperType]);
 
   useEffect(() => {
-    if (settingsOpen || historyOpen || diagnosticsOpen) {
+    if (settingsOpen || historyOpen) {
       const modal = document.querySelector<HTMLElement>('[role="dialog"]');
       const focusable = modal?.querySelector<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
       focusable?.focus();
     }
-  }, [settingsOpen, historyOpen, diagnosticsOpen]);
+  }, [settingsOpen, historyOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

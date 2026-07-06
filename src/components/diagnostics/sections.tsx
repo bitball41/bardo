@@ -139,11 +139,19 @@ export function ServiceWorkerSection({ d }: { d: DiagnosticsData }) {
   const [busy, setBusy] = useState(false);
 
   const checkForUpdates = async () => {
+    if (!("serviceWorker" in navigator)) {
+      toast.error("Service workers aren't supported in this browser");
+      return;
+    }
     setBusy(true);
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
       const reg = regs.find((r) => r.scope.includes(d.engine.swScope));
-      await reg?.update();
+      if (!reg) {
+        toast.error("No active service worker to update");
+        return;
+      }
+      await reg.update();
       toast.success("Checked for updates");
     } catch {
       toast.error("Couldn't check for updates");
@@ -225,8 +233,10 @@ export function StorageSection({ d }: { d: DiagnosticsData }) {
     const link = document.createElement("a");
     link.href = url;
     link.download = "bardo-data-export.json";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
     toast.success("Exported your Bardo data");
   };
 

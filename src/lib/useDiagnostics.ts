@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   CUSTOM_THEMES_KEY,
   ENGINE_BY_ID,
+  ENGINES,
   HISTORY_KEY,
   NOTES_KEY,
   SESSION_KEY,
@@ -116,11 +117,15 @@ function keyBytes(key: string): number {
 
 async function measureLatency(): Promise<{ ms: number | null; failed: boolean }> {
   const start = performance.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
   try {
-    await fetch(PING_PATH, { method: "GET", cache: "no-store" });
+    await fetch(PING_PATH, { method: "GET", cache: "no-store", signal: controller.signal });
     return { ms: Math.round(performance.now() - start), failed: false };
   } catch {
     return { ms: null, failed: true };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -315,7 +320,7 @@ export function useDiagnostics(): DiagnosticsData {
   const [probe, setProbe] = useState<Probe>(emptyProbe);
   useEffect(() => {
     let cancelled = false;
-    const engineInfo = ENGINE_BY_ID[core.engine];
+    const engineInfo = ENGINE_BY_ID[core.engine] ?? ENGINES[0];
     const tick = () => {
       runProbe(engineInfo, core.bookmarks).then((result) => {
         if (!cancelled) setProbe(result);
@@ -329,7 +334,7 @@ export function useDiagnostics(): DiagnosticsData {
     };
   }, [core.engine, core.bookmarks]);
 
-  const engineInfo = ENGINE_BY_ID[core.engine];
+  const engineInfo = ENGINE_BY_ID[core.engine] ?? ENGINES[0];
   const sleepingTabs = core.tabs.filter((t) => t.suspended).length;
   const performanceInfo: PerformanceInfo = {
     startupMs: getStartupMs(),
