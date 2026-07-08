@@ -119,6 +119,15 @@ app.get("/ab-launcher.js", revalidate, (_request, response) => {
   response.type("application/javascript");
   response.sendFile(path.join(rootDir, "public/ab-launcher.js"), { cacheControl: false });
 });
+app.get("/manifest.json", revalidate, (_request, response) => {
+  response.type("application/manifest+json");
+  response.sendFile(path.join(rootDir, "public/manifest.json"), { cacheControl: false });
+});
+for (const icon of ["apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-512-maskable.png"]) {
+  app.get(`/${icon}`, cacheProxyRuntime, (_request, response) => {
+    response.sendFile(path.join(rootDir, "public", icon), { cacheControl: false });
+  });
+}
 
 const distRoot = path.join(rootDir, "dist");
 const distIndex = path.join(distRoot, "index.html");
