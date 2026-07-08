@@ -968,10 +968,12 @@ kbd.kbd-inline {
 }
 [data-tabs="left"] #tab-bar {
   padding-bottom: var(--safe-b);
+  padding-right: 0;
 }
 [data-tabs="left"] #chrome {
   left: var(--tabs-w);
   top: var(--safe-t);
+  padding-left: 6px;
 }
 [data-tabs="left"] #bookmarks-bar {
   left: var(--tabs-w);
@@ -1035,11 +1037,13 @@ kbd.kbd-inline {
 }
 [data-tabs="right"] #tab-bar {
   padding-bottom: var(--safe-b);
+  padding-left: 0;
 }
 [data-tabs="right"] #chrome {
   right: var(--tabs-w);
   left: 0;
   top: var(--safe-t);
+  padding-right: 6px;
 }
 [data-tabs="right"] #bookmarks-bar {
   right: var(--tabs-w);
