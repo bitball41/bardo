@@ -106,12 +106,12 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 8px;
+  height: calc(8px + var(--safe-t));
   z-index: 400;
 }
 .fs-hover-bar {
   position: absolute;
-  top: 0;
+  top: var(--safe-t);
   left: 50%;
   display: flex;
   align-items: center;
@@ -151,7 +151,7 @@
 
 .toast-stack {
   position: fixed;
-  bottom: 18px;
+  bottom: calc(18px + var(--safe-b));
   left: 50%;
   transform: translateX(-50%);
   z-index: 500;
@@ -278,7 +278,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 12vh;
+  padding: calc(12dvh + var(--safe-t)) calc(var(--safe-r) + 8px) var(--safe-b) calc(var(--safe-l) + 8px);
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(4px);
 }
@@ -389,7 +389,7 @@
 .tab-ctx-item:hover { background: var(--hover); }
 
 @media (max-width: 600px) {
-  :root { --chrome-h: 72px; }
+  :root { --chrome-h: 84px; }
 
   html:not([data-tabs="left"]):not([data-tabs="right"]) #chrome {
     align-content: center;
@@ -415,6 +415,31 @@
   #logo { width: 58px; height: 58px; }
   #wordmark { font-size: 42px; }
   .tab-switcher-url { display: none; }
+
+  .nav-btn { width: 40px; height: 40px; }
+  .nav-btn svg { width: 17px; height: 17px; }
+  #btn-new-tab { width: 40px; }
+  .tab-close { width: 22px; height: 22px; opacity: 1; }
+  .tab-close svg { width: 12px; height: 12px; }
+  #btn-tab-groups { width: 38px; }
+}
+
+/*
+ * Coarse-pointer (touch) devices: iOS Safari zooms the page when a focused
+ * input's font-size is under 16px, so every text field needs a 16px floor
+ * here rather than globally, which would blow up the compact desktop density.
+ */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: max(16px, 1em); }
+  #url-bar, #search-input, #hp-search { font-size: 16px; }
+  .te-hex-input { width: 96px; }
+
+  .accent-swatch { width: 30px; height: 30px; }
+  .toggle-wrap { width: 42px; height: 24px; }
+  .toggle-wrap .toggle-track::after { width: 18px; height: 18px; }
+  .toggle-input:checked + .toggle-track::after { transform: translateX(18px); }
+  .waffle-item { padding: 12px 8px; }
+  .bm-bar-icon, .mini-action { width: 30px; height: 30px; }
 }
 
 @media (max-height: 620px) {
@@ -641,8 +666,8 @@ body.toolbar-preview-dragging .tbe-preview-control { cursor: grabbing; }
 
 @media (max-width: 700px) {
   #settings-modal {
-    width: 96vw;
-    height: 94vh;
+    width: calc(96vw - var(--safe-l) - var(--safe-r));
+    height: calc(94dvh - var(--safe-t) - var(--safe-b));
   }
   .sm-sidebar { width: 132px; }
   .sm-content { padding: 16px; }
@@ -923,7 +948,7 @@ html[data-anim="reduced"] *::after {
 #btn-tab-groups { width: 30px; height: 100%; display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
 #btn-tab-groups:hover, #btn-tab-groups[aria-expanded="true"] { color: var(--text); background: var(--hover); }
 .tab-groups-wrap { position: relative; flex: 0 0 auto; }
-.tab-groups-menu { position: fixed; right: 6px; top: calc(var(--tabs-h) + 4px); left: auto; min-width: 190px; max-height: 320px; overflow-y: auto; z-index: 180; }
+.tab-groups-menu { position: fixed; right: calc(6px + var(--safe-r)); top: calc(var(--tabs-h) + var(--safe-t) + 4px); left: auto; min-width: 190px; max-height: 320px; overflow-y: auto; z-index: 180; }
 .tab-menu-label { padding: 6px 9px 3px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .tab-menu-empty { padding: 9px; color: var(--muted); font-size: 10px; }
 .tab-saved-group-item { justify-content: space-between; gap: 12px; }
@@ -985,7 +1010,7 @@ html[data-contrast="more"] .setting-row, html[data-contrast="more"] .action-btn,
 .bookmarks-empty { height: 23px; border: 0; border-radius: 4px; background: transparent; cursor: pointer; font: inherit; }
 .bookmarks-empty:hover { color: var(--text); background: var(--hover); }
 
-.bookmarks-popover { position: fixed; top: calc(var(--tabs-h) + var(--chrome-h) + var(--bookmarks-h) + 6px); right: 8px; width: min(430px, calc(100vw - 16px)); max-height: min(560px, calc(100vh - var(--total-h) - 16px)); overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 96%, transparent); color: var(--text); box-shadow: 0 22px 64px rgba(0, 0, 0, .46), 0 2px 12px rgba(0, 0, 0, .24); z-index: 260; backdrop-filter: blur(18px); animation: bookmark-pop .15s ease-out; }
+.bookmarks-popover { position: fixed; top: calc(var(--tabs-h) + var(--chrome-h) + var(--bookmarks-h) + var(--safe-t) + 6px); right: calc(8px + var(--safe-r)); width: min(430px, calc(100vw - 16px)); max-height: min(560px, calc(100dvh - var(--total-h) - var(--safe-t) - 16px)); overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--surface) 96%, transparent); color: var(--text); box-shadow: 0 22px 64px rgba(0, 0, 0, .46), 0 2px 12px rgba(0, 0, 0, .24); z-index: 260; backdrop-filter: blur(18px); animation: bookmark-pop .15s ease-out; }
 @keyframes bookmark-pop { from { opacity: 0; transform: translateY(-4px) scale(.985); } }
 .bookmarks-popover form { display: contents; }
 .bm-popover-head { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 9px 14px; border-bottom: 1px solid var(--border); }
@@ -1087,12 +1112,12 @@ html[data-contrast="more"] .setting-row, html[data-contrast="more"] .action-btn,
 .tab-group-toggle i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--group-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-color) 18%, transparent); }
 .tab-group-toggle small { color: var(--group-color); }
 
-[data-tabs="bottom"] .bookmarks-popover { top: calc(var(--chrome-h) + var(--bookmarks-h) + 6px); }
-[data-tabs="left"] .bookmarks-popover { right: 8px; left: calc(var(--tabs-w) + 8px); width: min(430px, calc(100vw - var(--tabs-w) - 16px)); top: calc(var(--chrome-h) + var(--bookmarks-h) + 6px); }
-[data-tabs="right"] .bookmarks-popover { right: calc(var(--tabs-w) + 8px); top: calc(var(--chrome-h) + var(--bookmarks-h) + 6px); }
-[data-tabs="bottom"] .tab-groups-menu { top: auto; bottom: calc(var(--tabs-h) + 4px); }
-[data-tabs="left"] .tab-groups-menu { top: 6px; right: auto; left: calc(var(--tabs-w) + 4px); max-height: calc(100vh - 12px); }
-[data-tabs="right"] .tab-groups-menu { top: 6px; right: calc(var(--tabs-w) + 4px); max-height: calc(100vh - 12px); }
+[data-tabs="bottom"] .bookmarks-popover { top: calc(var(--chrome-h) + var(--bookmarks-h) + var(--safe-t) + 6px); }
+[data-tabs="left"] .bookmarks-popover { right: calc(8px + var(--safe-r)); left: calc(var(--tabs-w) + 8px); width: min(430px, calc(100vw - var(--tabs-w) - 16px)); top: calc(var(--chrome-h) + var(--bookmarks-h) + var(--safe-t) + 6px); }
+[data-tabs="right"] .bookmarks-popover { right: calc(var(--tabs-w) + 8px); top: calc(var(--chrome-h) + var(--bookmarks-h) + var(--safe-t) + 6px); }
+[data-tabs="bottom"] .tab-groups-menu { top: auto; bottom: calc(var(--tabs-h) + var(--safe-b) + 4px); }
+[data-tabs="left"] .tab-groups-menu { top: calc(var(--safe-t) + 6px); right: auto; left: calc(var(--tabs-w) + 4px); max-height: calc(100dvh - 12px); }
+[data-tabs="right"] .tab-groups-menu { top: calc(var(--safe-t) + 6px); right: calc(var(--tabs-w) + 4px); max-height: calc(100dvh - 12px); }
 
 @media (max-width: 520px) {
   .bookmarks-popover { right: 6px; width: calc(100vw - 12px); }
@@ -1311,9 +1336,9 @@ html[data-contrast="more"] .setting-row, html[data-contrast="more"] .action-btn,
   display: flex;
   align-items: center;
   gap: 14px;
-  height: 56px;
+  height: calc(56px + var(--safe-t));
   flex-shrink: 0;
-  padding: 0 18px;
+  padding: var(--safe-t) calc(18px + var(--safe-r)) 0 calc(18px + var(--safe-l));
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }

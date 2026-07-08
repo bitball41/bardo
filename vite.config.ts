@@ -18,6 +18,11 @@ const passthrough = [
   '/sw-opulent.js',
   '/shortcuts.json',
   '/ab-launcher.js',
+  '/manifest.json',
+  '/apple-touch-icon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-512-maskable.png',
 ];
 
 export default defineConfig({

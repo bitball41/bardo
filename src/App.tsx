@@ -40,6 +40,9 @@ export default function App() {
 
   useEffect(() => {
     applyThemeToDocument(s, customThemes);
+    const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (meta && bg) meta.content = bg;
   }, [s.theme, s.accent, s.moreContrast, customThemes]);
 
   useEffect(() => {
