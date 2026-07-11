@@ -21,6 +21,27 @@ should go first.
 
 ---
 
+## Implemented in this PR
+
+Beyond documenting the findings, this PR applies the security-critical subset
+directly to the source:
+
+- **Item 1 (mapped-IPv6 hole + DNS resolve-and-check).** `isBlockedHost` in
+  `server/proxy-shared.ts` now decodes IPv4-mapped IPv6 addresses, and a new
+  `assertSafeHost` resolves each hostname and rejects if the name — or any
+  address it resolves to — is internal. It's wired into every upstream hop
+  (`fetchUpstream`) and both engines' WebSocket upgrade paths. The remaining
+  DNS-rebinding *socket pinning* (Part 2 below) is left as follow-up.
+- **Item 2 (upstream fetch timeout).** A 20 s per-hop `AbortSignal.timeout` on
+  the upstream `fetch`.
+- **Item 6 (partial — guard tests).** `server/proxy-shared.test.ts` covers the
+  guard with 34 cases, including both bypasses, on Node's built-in test runner
+  via `npm test` — no new dependency.
+
+Items 3, 4, 5, 7, the rest of 6, and item 1 Part 2 remain proposals below.
+
+---
+
 ## P1 · Security
 
 ### 1. SSRF guard can be bypassed two ways
@@ -72,6 +93,20 @@ logic.* Extract an embedded IPv4 from a mapped v6 address and re-run the v4
 checks:
 
 ```ts
+// "7f00:1" -> "127.0.0.1". Node normalizes ::ffff:a.b.c.d to compressed hex
+// pairs, so recover the embedded v4 before running the v4 checks. Returns null
+// for anything that isn't two clean hex groups so the caller denies rather than
+// coercing a NaN into a bogus address.
+function hexPairsToIPv4(hex: string): string | null {
+  const parts = hex.split(":");
+  if (parts.length !== 2 || !/^[0-9a-f]{1,4}$/.test(parts[0]) || !/^[0-9a-f]{1,4}$/.test(parts[1])) {
+    return null;
+  }
+  const high = parseInt(parts[0], 16);
+  const low = parseInt(parts[1], 16);
+  return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
+}
+
 function isBlockedIPv4(host: string): boolean {
   const o = host.split(".").map(Number);
   if (o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true; // malformed → deny
@@ -118,6 +153,7 @@ Bypass A. Suggested shape:
 
 ```ts
 import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 
 async function assertSafeHost(hostname: string) {
   if (isBlockedHost(hostname)) throw new Error(`Blocked host: ${hostname}`);
