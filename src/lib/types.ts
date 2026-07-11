@@ -61,6 +61,7 @@ export interface CustomTheme {
 
 export interface ScramjetController {
   encodeUrl(url: string): string;
+  decodeUrl(url: string): string;
   createFrame(iframe: HTMLIFrameElement): ScramjetFrame;
   init(): Promise<void>;
 }
@@ -82,6 +83,7 @@ export interface ScramjetControllerFactory {
 
 export interface SherpaController {
   encodeUrl(url: string): string;
+  decodeUrl(url: string): string;
   createFrame(iframe: HTMLIFrameElement): ScramjetFrame;
   init(): Promise<void>;
 }

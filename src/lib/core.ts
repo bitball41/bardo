@@ -354,6 +354,7 @@ class BardoCore {
 
   private bindTabLoad(tab: InternalTab) {
     tab.iframe.addEventListener("load", () => {
+      this.installLinkInterceptor(tab);
       if (!tab.url) return;
       tab.loading = false;
       if (tab.id === this.activeTabId) this.finishProgress();
@@ -362,6 +363,83 @@ class BardoCore {
       this.saveSession();
       this.emit();
     });
+  }
+
+  /**
+   * Keeps links that would open a new browser tab inside Bardo instead. The
+   * proxied page is served from our own origin, so its document is reachable
+   * here: we watch clicks in the capture phase and, when an anchor would open a
+   * new tab (target="_blank", or a middle / ctrl / cmd click), route it to a
+   * Bardo tab rather than letting the sandboxed iframe spawn a real browser tab.
+   *
+   * Right-click "Open in new tab" never fires a click event, so it is left to
+   * the browser on purpose — exactly the one case that should escape Bardo.
+   */
+  private installLinkInterceptor(tab: InternalTab) {
+    let doc: Document | null = null;
+    try {
+      doc = tab.iframe.contentDocument;
+    } catch {
+      return; // cross-origin document — nothing we can (or should) touch
+    }
+    if (!doc || (doc as any).__bardoLinkHook) return;
+    (doc as any).__bardoLinkHook = true;
+    const handler = (e: MouseEvent) => this.handleFrameLinkClick(e);
+    doc.addEventListener("click", handler, true);
+    doc.addEventListener("auxclick", handler, true);
+  }
+
+  private handleFrameLinkClick(e: MouseEvent) {
+    // Only primary (0) and middle (1) buttons open tabs; the right button is
+    // handled by the native context menu and must be left alone.
+    if (e.button !== 0 && e.button !== 1) return;
+    if (e.defaultPrevented) return;
+    const anchor = findAnchor(e);
+    if (!anchor || !anchor.href) return;
+
+    const opensNewTab =
+      e.button === 1 || e.metaKey || e.ctrlKey || anchor.target === "_blank";
+    if (!opensNewTab) return;
+
+    const real = this.decodeProxiedUrl(anchor.href);
+    if (!real) return; // not a proxied http(s) link — let the browser decide
+
+    e.preventDefault();
+    e.stopPropagation();
+    // Modifier / middle clicks open in the background; a plain new-tab link
+    // (target="_blank") comes to the foreground, matching browser conventions.
+    if (e.button === 1 || e.metaKey || e.ctrlKey) this.openBackgroundTab(real);
+    else this.openTab(real);
+  }
+
+  /**
+   * Recovers the real destination from a proxied anchor href so it can be
+   * handed back to {@link navigate}. Returns null when the link isn't a proxied
+   * http(s) URL, in which case the click is left to its default behaviour.
+   */
+  private decodeProxiedUrl(href: string): string | null {
+    if (!href) return null;
+    if (!href.startsWith(location.origin)) {
+      // Anchor wasn't rewritten to our origin (rare) — only take real web URLs.
+      return /^https?:\/\//i.test(href) ? href : null;
+    }
+    const ctrl = window.__bardoCtrl;
+    if (ctrl && "decodeUrl" in ctrl && typeof (ctrl as any).decodeUrl === "function") {
+      try {
+        const real = (ctrl as any).decodeUrl(href);
+        if (typeof real === "string" && /^https?:\/\//i.test(real)) return real;
+      } catch {
+      }
+    }
+    const prefix = location.origin + this.activeSvcPrefix();
+    if (href.startsWith(prefix)) {
+      try {
+        const real = decodeURIComponent(href.slice(prefix.length));
+        if (/^https?:\/\//i.test(real)) return real;
+      } catch {
+      }
+    }
+    return null;
   }
 
   openTab(url: string | null = null) {
@@ -388,6 +466,19 @@ class BardoCore {
     if (url) this.navigate(url);
     this.emit();
     return id;
+  }
+
+  /**
+   * Opens a URL in a new background tab without switching to it. The tab loads
+   * lazily when first activated, mirroring how a modifier/middle-click new tab
+   * behaves in a normal browser.
+   */
+  private openBackgroundTab(url: string) {
+    const tab = this.openSuspendedTab({ url });
+    this.applyUrlMeta(tab, url);
+    this.saveSession();
+    this.emit();
+    return tab.id;
   }
 
   private openSuspendedTab(meta: { url: string; title?: string; favicon?: string | null; pinned?: boolean; groupId?: string | null }) {
@@ -1587,6 +1678,24 @@ class PrefixFrame {
 
 function gFav(domain: string) {
   return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+}
+
+// Finds the nearest anchor for a click inside a proxied frame. Uses tagName
+// rather than `instanceof HTMLAnchorElement` because the element lives in the
+// iframe's realm, where a cross-realm instanceof check would always be false.
+function findAnchor(e: MouseEvent): HTMLAnchorElement | null {
+  const path = typeof e.composedPath === "function" ? e.composedPath() : [];
+  for (const node of path) {
+    if (node && (node as Element).nodeType === 1 && (node as Element).tagName === "A") {
+      return node as HTMLAnchorElement;
+    }
+  }
+  let el = e.target as Element | null;
+  while (el && el.nodeType === 1) {
+    if (el.tagName === "A") return el as HTMLAnchorElement;
+    el = el.parentElement;
+  }
+  return null;
 }
 
 export const core = new BardoCore();
