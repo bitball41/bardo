@@ -80,6 +80,9 @@ export interface Snapshot {
   tabGroups: TabGroup[];
   savedTabGroups: SavedTabGroup[];
   ctrlReady: boolean;
+  capabilitiesReady: boolean;
+  engineSupport: Record<EngineName, boolean>;
+  deploymentMode: "server" | "frontend-preview";
   abLaunched: boolean;
   abBlocked: boolean;
   /** Host of the Wisp server currently in use; null for server-side engines. */
@@ -107,6 +110,14 @@ class BardoCore {
   private swUpdateDebounce: ReturnType<typeof setTimeout> | null = null;
   private swUpdateScheduled = false;
   private wispUrl: string | null = null;
+  private capabilitiesReady = false;
+  private engineSupport: Record<EngineName, boolean> = {
+    sherpa: false,
+    scramjet: false,
+    klystron: false,
+    opulent: false,
+  };
+  private deploymentMode: "server" | "frontend-preview" = "frontend-preview";
 
   private history: HistoryEntry[] = this.loadHistory();
   private shortcuts: Shortcut[] = [];
@@ -159,6 +170,9 @@ class BardoCore {
       tabGroups: this.tabGroups,
       savedTabGroups: this.savedTabGroups,
       ctrlReady: this.ctrlReady,
+      capabilitiesReady: this.capabilitiesReady,
+      engineSupport: this.engineSupport,
+      deploymentMode: this.deploymentMode,
       abLaunched: !!window.__bardoAbLaunched,
       abBlocked: !!window.__bardoAbBlocked,
       wispUrl: this.wispUrl,
@@ -199,6 +213,14 @@ class BardoCore {
   }
 
   setSetting<K extends keyof Settings>(key: K, value: Settings[K]) {
+    if (
+      key === "engine" &&
+      this.capabilitiesReady &&
+      !this.engineSupport[value as EngineName]
+    ) {
+      toast.info("That engine is unavailable on this deployment.");
+      return;
+    }
     this.settings = { ...this.settings, [key]: value };
     if (key === "sessionOnly" && value === true) {
       this.clearSession();
@@ -331,8 +353,60 @@ class BardoCore {
     if (this.booted) return;
     this.booted = true;
     this.restoreSession();
-    this.initEngine();
+    void this.detectDeploymentCapabilities();
     this.loadShortcuts();
+  }
+
+  private async detectDeploymentCapabilities() {
+    const support: Record<EngineName, boolean> = {
+      sherpa: false,
+      scramjet: false,
+      klystron: false,
+      opulent: false,
+    };
+
+    try {
+      const response = await fetch("/api/capabilities", {
+        cache: "no-store",
+        headers: { accept: "application/json" },
+      });
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || !contentType.toLowerCase().includes("application/json")) {
+        throw new Error("Capabilities endpoint unavailable");
+      }
+
+      const payload = await response.json() as {
+        app?: unknown;
+        mode?: unknown;
+        engines?: Partial<Record<EngineName, unknown>>;
+      };
+      if (payload.app !== "bardo" || !payload.engines) {
+        throw new Error("Invalid capabilities response");
+      }
+
+      for (const engine of Object.keys(support) as EngineName[]) {
+        support[engine] = payload.engines[engine] === true;
+      }
+      this.deploymentMode = payload.mode === "server" ? "server" : "frontend-preview";
+    } catch {
+      // Cloudflare intentionally hosts only the built frontend. Its SPA fallback
+      // returns index.html for this URL, so a non-JSON response means preview mode.
+      this.deploymentMode = "frontend-preview";
+    }
+
+    this.engineSupport = support;
+    this.capabilitiesReady = true;
+
+    if (!support[this.settings.engine]) {
+      this.ctrlReady = false;
+      this.wispUrl = null;
+      window.__bardoCtrl = undefined;
+      this.setStatus("Frontend preview — browsing is unavailable on this deployment.", true);
+      return;
+    }
+
+    this.emit();
+    await this.initEngine();
   }
 
   private getActiveTab() {
@@ -1221,6 +1295,11 @@ class BardoCore {
   }
 
   async initEngine(attempt = 1) {
+    if (this.capabilitiesReady && !this.engineSupport[this.settings.engine]) {
+      this.ctrlReady = false;
+      this.setStatus("This browsing engine is unavailable on this deployment.", true);
+      return;
+    }
     if (!("serviceWorker" in navigator)) {
       this.setStatus("Service workers not supported.", true);
       return;
@@ -1252,6 +1331,10 @@ class BardoCore {
 
   /** User-initiated restart of the currently selected engine (not a switch). */
   async restartEngine() {
+    if (this.capabilitiesReady && !this.engineSupport[this.settings.engine]) {
+      toast.info("Browsing engines are unavailable on this deployment.");
+      return;
+    }
     const name = ENGINE_BY_ID[this.settings.engine]?.name ?? this.settings.engine;
     logEvent(`Restarting the ${name} engine…`);
     recordEngineRestart();

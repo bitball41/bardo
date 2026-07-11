@@ -252,13 +252,253 @@ const URL_ATTRS = new Set([
   "href", "src", "action", "formaction", "poster", "data", "cite",
   "background", "ping", "longdesc", "xlink:href",
 ]);
-const CSS_URL = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
-const CSS_IMPORT = /@import\s+(['"])(.*?)\1/gi;
-const JS_URL = /(['"`])(https?:\/\/[^'"`]+|\/\/[^'"`]+|\/[^'"`\s]+|\.{1,2}\/[^'"`\s]+)\1/g;
 const LOOKS_LIKE_URL = /^(https?:)?\/\/|^\//i;
 
-export function rewrite(baseUrl: string, content: string, contentType: string, prefix: string): string {
-  const dom = new JSDOM(content, {
+type UrlWrapper = (value: string) => string;
+
+function isSpace(char: string | undefined): boolean {
+  return char === " " || char === "\n" || char === "\r" || char === "\t" || char === "\f";
+}
+
+function findQuotedEnd(source: string, start: number, quote: string): number {
+  for (let i = start + 1; i < source.length; i++) {
+    if (source[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (source[i] === quote) return i;
+  }
+  return -1;
+}
+
+function findTemplateEnd(source: string, start: number): number {
+  let expressionDepth = 0;
+  for (let i = start + 1; i < source.length; i++) {
+    const char = source[i];
+    if (char === "\\") {
+      i++;
+      continue;
+    }
+    if (expressionDepth === 0) {
+      if (char === "`") return i;
+      if (char === "$" && source[i + 1] === "{") {
+        expressionDepth = 1;
+        i++;
+      }
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      const end = findQuotedEnd(source, i, char);
+      if (end < 0) return source.length - 1;
+      i = end;
+      continue;
+    }
+    if (char === "`") {
+      const end = findTemplateEnd(source, i);
+      if (end < 0) return source.length - 1;
+      i = end;
+      continue;
+    }
+    if (char === "/" && source[i + 1] === "/") {
+      const end = source.indexOf("\n", i + 2);
+      if (end < 0) return source.length - 1;
+      i = end;
+      continue;
+    }
+    if (char === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      if (end < 0) return source.length - 1;
+      i = end + 1;
+      continue;
+    }
+    if (char === "{") expressionDepth++;
+    else if (char === "}") expressionDepth--;
+  }
+  return source.length - 1;
+}
+
+function isScriptUrl(value: string): boolean {
+  if (!value || value.trim() !== value) return false;
+  const lower = value.toLowerCase();
+  return lower.startsWith("http://") ||
+    lower.startsWith("https://") ||
+    value.startsWith("//") ||
+    value.startsWith("/") ||
+    value.startsWith("./") ||
+    value.startsWith("../");
+}
+
+/**
+ * Rewrites only complete single/double-quoted URL literals. A small lexer skips
+ * comments, template literals, and escaped strings so URL-like text cannot
+ * accidentally corrupt executable JavaScript.
+ */
+function rewriteJavaScript(js: string, wrap: UrlWrapper): string {
+  let output = "";
+  let cursor = 0;
+
+  for (let i = 0; i < js.length; i++) {
+    const char = js[i];
+    if (char === "/" && js[i + 1] === "/") {
+      const end = js.indexOf("\n", i + 2);
+      i = end < 0 ? js.length : end;
+      continue;
+    }
+    if (char === "/" && js[i + 1] === "*") {
+      const end = js.indexOf("*/", i + 2);
+      i = end < 0 ? js.length : end + 1;
+      continue;
+    }
+    if (char === "`") {
+      i = findTemplateEnd(js, i);
+      continue;
+    }
+    if (char !== "'" && char !== '"') continue;
+
+    const end = findQuotedEnd(js, i, char);
+    if (end < 0) break;
+    const value = js.slice(i + 1, end);
+    if (!value.includes("\\") && isScriptUrl(value)) {
+      output += js.slice(cursor, i + 1) + wrap(value) + char;
+      cursor = end + 1;
+    }
+    i = end;
+  }
+
+  return output + js.slice(cursor);
+}
+
+/**
+ * Parses srcset candidates without splitting data URLs at their embedded comma.
+ * The URL token ends at whitespace (or, for normal URLs, a candidate comma);
+ * descriptors are preserved exactly as browser-facing tokens.
+ */
+function rewriteSrcset(value: string, wrap: UrlWrapper): string {
+  const candidates: string[] = [];
+  let i = 0;
+
+  while (i < value.length) {
+    while (i < value.length && (isSpace(value[i]) || value[i] === ",")) i++;
+    if (i >= value.length) break;
+
+    const urlStart = i;
+    const dataUrl = value.slice(i, i + 5).toLowerCase() === "data:";
+    while (i < value.length && !isSpace(value[i]) && (dataUrl || value[i] !== ",")) i++;
+    const url = value.slice(urlStart, i);
+
+    while (i < value.length && isSpace(value[i])) i++;
+    const descriptorStart = i;
+    while (i < value.length && value[i] !== ",") i++;
+    const descriptor = value.slice(descriptorStart, i).trim();
+    if (i < value.length && value[i] === ",") i++;
+
+    if (url) candidates.push(wrap(url) + (descriptor ? ` ${descriptor}` : ""));
+  }
+
+  return candidates.join(", ");
+}
+
+function rewriteCssImports(css: string, wrap: UrlWrapper): string {
+  let output = "";
+  let cursor = 0;
+
+  for (let i = 0; i < css.length; i++) {
+    if (css[i] === "/" && css[i + 1] === "*") {
+      const end = css.indexOf("*/", i + 2);
+      i = end < 0 ? css.length : end + 1;
+      continue;
+    }
+    if (css[i] === "'" || css[i] === '"') {
+      const end = findQuotedEnd(css, i, css[i]);
+      if (end < 0) break;
+      i = end;
+      continue;
+    }
+    if (css.slice(i, i + 7).toLowerCase() !== "@import") continue;
+    if (/[a-z0-9_-]/i.test(css[i + 7] ?? "")) continue;
+
+    let start = i + 7;
+    while (isSpace(css[start])) start++;
+    const quote = css[start];
+    if (quote !== "'" && quote !== '"') continue;
+    const end = findQuotedEnd(css, start, quote);
+    if (end < 0) break;
+
+    const value = css.slice(start + 1, end);
+    output += css.slice(cursor, start + 1) + wrap(value) + quote;
+    cursor = end + 1;
+    i = end;
+  }
+
+  return output + css.slice(cursor);
+}
+
+function rewriteCssUrls(css: string, wrap: UrlWrapper): string {
+  let output = "";
+  let cursor = 0;
+
+  for (let i = 0; i < css.length; i++) {
+    if (css[i] === "/" && css[i + 1] === "*") {
+      const end = css.indexOf("*/", i + 2);
+      i = end < 0 ? css.length : end + 1;
+      continue;
+    }
+    if (css[i] === "'" || css[i] === '"') {
+      const end = findQuotedEnd(css, i, css[i]);
+      if (end < 0) break;
+      i = end;
+      continue;
+    }
+    if (css.slice(i, i + 3).toLowerCase() !== "url") continue;
+    if (/[a-z0-9_-]/i.test(css[i - 1] ?? "")) continue;
+
+    let open = i + 3;
+    while (isSpace(css[open])) open++;
+    if (css[open] !== "(") continue;
+
+    let valueStart = open + 1;
+    while (isSpace(css[valueStart])) valueStart++;
+    const quote = css[valueStart] === "'" || css[valueStart] === '"' ? css[valueStart] : "";
+    if (quote) valueStart++;
+
+    let valueEnd = valueStart;
+    if (quote) {
+      valueEnd = findQuotedEnd(css, valueStart - 1, quote);
+      if (valueEnd < 0) break;
+    } else {
+      while (valueEnd < css.length && css[valueEnd] !== ")") {
+        if (css[valueEnd] === "\\") valueEnd++;
+        valueEnd++;
+      }
+      if (valueEnd >= css.length) break;
+    }
+
+    let close = quote ? valueEnd + 1 : valueEnd;
+    while (isSpace(css[close])) close++;
+    if (css[close] !== ")") continue;
+
+    const value = css.slice(valueStart, valueEnd).trim();
+    output += css.slice(cursor, i) + `url(${quote}${wrap(value)}${quote})`;
+    cursor = close + 1;
+    i = close;
+  }
+
+  return output + css.slice(cursor);
+}
+
+function rewriteCss(css: string, wrap: UrlWrapper): string {
+  return rewriteCssUrls(rewriteCssImports(css, wrap), wrap);
+}
+
+export function rewrite(
+  baseUrl: string,
+  content: string,
+  contentType: string,
+  prefix: string,
+  existingDom?: JSDOM,
+): string {
+  const dom = existingDom ?? new JSDOM(content, {
     url: baseUrl,
     contentType: contentType.includes("xml") ? "text/xml" : "text/html",
   });
@@ -276,21 +516,9 @@ export function rewrite(baseUrl: string, content: string, contentType: string, p
   const wrap = (value: string): string =>
     shouldSkip(value) ? value : prefix + encodeURIComponent(resolve(value));
 
-  const fixSrcset = (value: string): string =>
-    value
-      .split(",")
-      .map((part) => {
-        const [url, descriptor] = part.trim().split(/\s+/, 2);
-        return wrap(url) + (descriptor ? ` ${descriptor}` : "");
-      })
-      .join(", ");
-
-  const fixCss = (css: string): string =>
-    css
-      .replace(CSS_URL, (_m, q, url) => `url(${q}${wrap(url)}${q})`)
-      .replace(CSS_IMPORT, (_m, q, url) => `@import ${q}${wrap(url)}${q}`);
-
-  const fixJs = (js: string): string => js.replace(JS_URL, (_m, q, url) => `${q}${wrap(url)}${q}`);
+  const fixSrcset = (value: string): string => rewriteSrcset(value, wrap);
+  const fixCss = (css: string): string => rewriteCss(css, wrap);
+  const fixJs = (js: string): string => rewriteJavaScript(js, wrap);
 
   for (const el of document.querySelectorAll("*")) {
     for (const attr of [...el.attributes]) {
