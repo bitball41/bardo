@@ -17,6 +17,20 @@ interface ChromeProps {
   onToggleFullscreen: () => void;
 }
 
+function useMobileChrome() {
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 640px)").matches);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 640px)");
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return mobile;
+}
+
 function PaneButton({ pane, onOpenHistory }: { pane: PaneId; onOpenHistory: () => void }) {
   const meta = PANE_BY_ID[pane];
   const [open, setOpen] = useState(false);
@@ -123,6 +137,7 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
   );
   const [value, setValue] = useState(activeUrl);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const mobile = useMobileChrome();
 
   useEffect(() => {
     setValue(activeUrl);
@@ -315,20 +330,40 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
 
   return (
     <div id="chrome">
-      {toolbar.map(renderEntry)}
-
-      {settings.erudaEnabled && (
-        <button className="nav-btn" id="btn-devtools" title="Developer tools" onClick={openEruda}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4,5 1,8 4,11" />
-            <polyline points="12,5 15,8 12,11" />
-            <line x1="9.5" y1="2.5" x2="6.5" y2="13.5" />
-          </svg>
-        </button>
+      {mobile ? (
+        <>
+          {toolbar.some((entry) => entry.id === "address") && (
+            <div className="mobile-chrome-address">
+              {toolbar.filter((entry) => entry.id === "address").map(renderEntry)}
+            </div>
+          )}
+          <div className="mobile-chrome-actions" aria-label="Browser controls">
+            {toolbar
+              .filter((entry) => entry.id !== "address" && entry.id !== "separator" && entry.id !== "spacer" && entry.id !== "sidebar-toggle")
+              .map(renderEntry)}
+            {settings.erudaEnabled && <DevtoolsButton />}
+          </div>
+        </>
+      ) : (
+        toolbar.map(renderEntry)
       )}
+
+      {settings.erudaEnabled && !mobile && <DevtoolsButton />}
 
       <div id="progress-bar" className={progress === "idle" ? "" : progress} style={{ width: progress === "active" ? "75%" : progress === "done" ? "100%" : "0%" }} />
     </div>
+  );
+}
+
+function DevtoolsButton() {
+  return (
+    <button className="nav-btn" id="btn-devtools" title="Developer tools" onClick={openEruda}>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="4,5 1,8 4,11" />
+        <polyline points="12,5 15,8 12,11" />
+        <line x1="9.5" y1="2.5" x2="6.5" y2="13.5" />
+      </svg>
+    </button>
   );
 }
 
