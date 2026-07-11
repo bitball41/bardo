@@ -174,16 +174,22 @@ async function handle(req: Request, res: Response): Promise<void> {
   }
 
   let text = await ures.text();
+  let parsedDom: JSDOM | undefined;
 
   if (req.method.toUpperCase() === "GET" && contentType.toLowerCase().includes("text/html")) {
-    const dom = new JSDOM(text, { url: finalUrl });
-    if (looksLikeEmptyShell(dom.window.document)) {
+    parsedDom = new JSDOM(text, { url: finalUrl });
+    if (looksLikeEmptyShell(parsedDom.window.document)) {
       const rendered = await renderWithBrowser(finalUrl);
-      if (rendered) text = rendered;
+      if (rendered) {
+        text = rendered;
+        parsedDom = undefined;
+      }
     }
   }
 
-  res.send(rewrite(finalUrl, text, contentType, OPULENT_PREFIX));
+  // Reuse the shell-check parse. If Chromium produced replacement markup,
+  // rewrite() creates the single parse needed for that new document instead.
+  res.send(rewrite(finalUrl, text, contentType, OPULENT_PREFIX, parsedDom));
 }
 
 // ---------------------------------------------------------------------------
