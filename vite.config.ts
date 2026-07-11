@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const EXPRESS = 'http://localhost:8080';
 const passthrough = [
+  '/api',
   '/sherpa',
   '/scramjet',
   '/baremux',
