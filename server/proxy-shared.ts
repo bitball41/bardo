@@ -6,6 +6,7 @@
 
 import type { Request, Response } from "express";
 import { isIP } from "node:net";
+import { lookup } from "node:dns/promises";
 import { JSDOM } from "jsdom";
 import type { CookieJar } from "tough-cookie";
 
@@ -13,27 +14,85 @@ import type { CookieJar } from "tough-cookie";
 // SSRF guard — refuse to let a proxy engine reach the box it runs on / the LAN.
 // ---------------------------------------------------------------------------
 
+// Recovers the embedded IPv4 from the compressed form of an IPv4-mapped IPv6
+// address. `new URL("http://[::ffff:127.0.0.1]/").hostname` normalizes to
+// `[::ffff:7f00:1]`, so the mapped tail arrives as hex pairs ("7f00:1"), not
+// dotted-decimal. Returns null for anything that isn't two clean hex groups so
+// the caller can deny rather than coerce a NaN into a bogus address.
+function hexPairsToIPv4(hex: string): string | null {
+  const parts = hex.split(":");
+  if (parts.length !== 2 || !/^[0-9a-f]{1,4}$/.test(parts[0]) || !/^[0-9a-f]{1,4}$/.test(parts[1])) {
+    return null;
+  }
+  const high = parseInt(parts[0], 16);
+  const low = parseInt(parts[1], 16);
+  return [(high >> 8) & 0xff, high & 0xff, (low >> 8) & 0xff, low & 0xff].join(".");
+}
+
+function isBlockedIPv4(host: string): boolean {
+  const o = host.split(".").map(Number);
+  if (o.length !== 4 || o.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true; // malformed → deny
+  if (o[0] === 127 || o[0] === 10 || o[0] === 0) return true;
+  if (o[0] === 192 && o[1] === 168) return true;
+  if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
+  if (o[0] === 169 && o[1] === 254) return true; // link-local / cloud metadata
+  if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) return true; // CGNAT
+  return false;
+}
+
 export function isBlockedHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (!host) return true;
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return true;
   if (host === "metadata.google.internal") return true;
 
-  if (isIP(host) === 4) {
-    const o = host.split(".").map(Number);
-    if (o[0] === 127 || o[0] === 10 || o[0] === 0) return true;
-    if (o[0] === 192 && o[1] === 168) return true;
-    if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return true;
-    if (o[0] === 169 && o[1] === 254) return true; // link-local / cloud metadata
-    if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) return true; // CGNAT
-    return false;
-  }
+  if (isIP(host) === 4) return isBlockedIPv4(host);
+
   if (isIP(host) === 6) {
     if (host === "::1" || host === "::") return true;
     if (host.startsWith("fc") || host.startsWith("fd")) return true; // unique-local
     if (host.startsWith("fe80")) return true; // link-local
+    // IPv4-mapped IPv6 (::ffff:a.b.c.d, normalized to ::ffff:AABB:CCDD): pull out
+    // the embedded v4 and run it through the v4 rules, else ::ffff:7f00:1 reaches
+    // loopback and ::ffff:a9fe:a9fe reaches cloud metadata straight through.
+    const mapped = host.match(/^::ffff:(.+)$/);
+    if (mapped) {
+      const v4 = mapped[1].includes(".") ? mapped[1] : hexPairsToIPv4(mapped[1]);
+      if (!v4 || isBlockedIPv4(v4)) return true;
+    }
     return false;
   }
   return false;
+}
+
+/**
+ * Guards against SSRF where a public-looking hostname resolves to an internal
+ * address. {@link isBlockedHost} only inspects the literal string, so a domain
+ * whose A/AAAA record points at 127.0.0.1, 169.254.169.254, a 10.x host, etc.
+ * would otherwise sail through. This resolves the name and rejects if the name
+ * itself — or ANY address it resolves to — is blocked. Literal IPs are already
+ * fully covered by isBlockedHost and skip the DNS round-trip.
+ *
+ * This checks at resolution time and does not pin the socket to the vetted
+ * address, so a determined attacker running DNS rebinding with a sub-request TTL
+ * could still differ between this check and fetch's own resolution. Closing that
+ * last gap needs a custom undici dispatcher (a resolve-once-and-pin `lookup`);
+ * it's noted as follow-up in docs/improvements-proposal.md.
+ */
+export async function assertSafeHost(hostname: string): Promise<void> {
+  if (isBlockedHost(hostname)) throw new Error(`Blocked host: ${hostname}`);
+  if (isIP(hostname) !== 0) return; // already a literal IP — isBlockedHost was authoritative
+  let records: { address: string }[];
+  try {
+    records = await lookup(hostname, { all: true });
+  } catch {
+    return; // couldn't resolve — let the actual request surface the DNS failure
+  }
+  for (const { address } of records) {
+    if (isBlockedHost(address)) {
+      throw new Error(`Blocked host (resolved): ${hostname} -> ${address}`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +150,11 @@ export interface Upstream {
   finalUrl: string;
 }
 
+// Per-hop deadline for upstream requests. Without it, a slow or deliberately
+// stalling target holds the socket (and the buffered request body) open
+// indefinitely.
+const UPSTREAM_TIMEOUT_MS = 20_000;
+
 export async function fetchUpstream(
   target: string,
   req: Request,
@@ -106,13 +170,19 @@ export async function fetchUpstream(
 
   for (let i = 0; i <= 10; i++) {
     const hop = new URL(url);
-    if (isBlockedHost(hop.hostname)) throw new Error(`Blocked host: ${hop.hostname}`);
+    await assertSafeHost(hop.hostname);
 
     const headers = new Headers(base);
     const cookie = await jar.getCookieString(url);
     if (cookie) headers.set("cookie", cookie);
 
-    const res = await fetch(url, { method, headers, body, redirect: "manual" });
+    const res = await fetch(url, {
+      method,
+      headers,
+      body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
 
     for (const c of res.headers.getSetCookie?.() ?? []) {
       try { await jar.setCookie(c, url); } catch { /* ignore bad cookie */ }

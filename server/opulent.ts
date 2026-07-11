@@ -24,6 +24,7 @@ import type { Duplex } from "node:stream";
 import { CookieJar } from "tough-cookie";
 import { JSDOM } from "jsdom";
 import {
+  assertSafeHost,
   copyResponseHeaders,
   fetchUpstream,
   isBlockedHost,
@@ -200,37 +201,40 @@ export function opulentUpgrade(req: IncomingMessage, socket: Duplex, head: Buffe
 
   let remote: URL;
   try { remote = new URL(target); } catch { socket.destroy(); return; }
-  if (isBlockedHost(remote.hostname)) { socket.destroy(); return; }
 
-  const secure = remote.protocol === "wss:" || remote.protocol === "https:";
-  const headers = { ...req.headers, host: remote.host };
-  delete headers["content-length"];
+  // Resolve-and-check the target — not just a literal-IP check — so a hostname
+  // that resolves to an internal address can't open a tunnel to the LAN.
+  assertSafeHost(remote.hostname).then(() => {
+    const secure = remote.protocol === "wss:" || remote.protocol === "https:";
+    const headers = { ...req.headers, host: remote.host };
+    delete headers["content-length"];
 
-  const proxyReq = (secure ? httpsRequest : httpRequest)({
-    protocol: secure ? "https:" : "http:",
-    hostname: remote.hostname,
-    port: remote.port || (secure ? 443 : 80),
-    path: remote.pathname + remote.search,
-    method: req.method,
-    headers,
-  });
+    const proxyReq = (secure ? httpsRequest : httpRequest)({
+      protocol: secure ? "https:" : "http:",
+      hostname: remote.hostname,
+      port: remote.port || (secure ? 443 : 80),
+      path: remote.pathname + remote.search,
+      method: req.method,
+      headers,
+    });
 
-  proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-    socket.write(`HTTP/1.1 101 ${proxyRes.statusMessage || "Switching Protocols"}\r\n`);
-    for (const [name, value] of Object.entries(proxyRes.headers)) {
-      if (value == null) continue;
-      for (const item of Array.isArray(value) ? value : [value]) socket.write(`${name}: ${item}\r\n`);
-    }
-    socket.write("\r\n");
-    if (proxyHead?.length) proxySocket.write(proxyHead);
-    if (head?.length) proxySocket.write(head);
-    proxySocket.pipe(socket);
-    socket.pipe(proxySocket);
-    proxySocket.on("error", () => socket.destroy());
-    socket.on("error", () => proxySocket.destroy());
-  });
-  proxyReq.on("error", () => socket.destroy());
-  proxyReq.end();
+    proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
+      socket.write(`HTTP/1.1 101 ${proxyRes.statusMessage || "Switching Protocols"}\r\n`);
+      for (const [name, value] of Object.entries(proxyRes.headers)) {
+        if (value == null) continue;
+        for (const item of Array.isArray(value) ? value : [value]) socket.write(`${name}: ${item}\r\n`);
+      }
+      socket.write("\r\n");
+      if (proxyHead?.length) proxySocket.write(proxyHead);
+      if (head?.length) proxySocket.write(head);
+      proxySocket.pipe(socket);
+      socket.pipe(proxySocket);
+      proxySocket.on("error", () => socket.destroy());
+      socket.on("error", () => proxySocket.destroy());
+    });
+    proxyReq.on("error", () => socket.destroy());
+    proxyReq.end();
+  }).catch(() => socket.destroy());
 }
 
 // ---------------------------------------------------------------------------
