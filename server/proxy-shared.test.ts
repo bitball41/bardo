@@ -8,7 +8,8 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isBlockedHost } from "./proxy-shared.js";
+import { JSDOM } from "jsdom";
+import { isBlockedHost, rewrite } from "./proxy-shared.js";
 
 // Feed hostnames the way callers do: via URL parsing, which normalizes IP forms
 // (e.g. decimal/hex IPv4, and ::ffff:127.0.0.1 -> [::ffff:7f00:1]).
@@ -39,3 +40,38 @@ for (const h of ALLOWED) {
 }
 
 test("blocks an empty host", () => assert.equal(isBlockedHost(""), true));
+
+
+const BASE = "https://example.com/path/page.html";
+const PREFIX = "/proxy/";
+
+test("rewrites srcset without splitting a data URL comma", () => {
+  const html = '<img srcset="data:image/svg+xml,%3Csvg%3E 1x, /image-2x.png 2x">';
+  const output = rewrite(BASE, html, "text/html", PREFIX);
+  assert.match(output, /data:image\/svg\+xml,%3Csvg%3E 1x/);
+  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fimage-2x\.png 2x/);
+});
+
+test("rewrites quoted CSS URLs containing parentheses and imports", () => {
+  const html = '<style>@import "./theme.css"; .hero{background:url("/image(foo).png")}</style>';
+  const output = rewrite(BASE, html, "text/html", PREFIX);
+  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fpath%2Ftheme\.css/);
+  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fimage\(foo\)\.png/);
+});
+
+test("rewrites JavaScript URL literals but leaves comments and labels alone", () => {
+  const html = '<script>// "/comment-only"\nconst api="/api"; const label="not/a/url";</script>';
+  const output = rewrite(BASE, html, "text/html", PREFIX);
+  assert.match(output, /\/\/ "\/comment-only"/);
+  assert.match(output, /const api="\/proxy\/https%3A%2F%2Fexample\.com%2Fapi"/);
+  assert.match(output, /const label="not\/a\/url"/);
+});
+
+test("reuses an existing parsed document", () => {
+  const dom = new JSDOM('<a href="/next">Next</a>', { url: BASE });
+  rewrite(BASE, dom.serialize(), "text/html", PREFIX, dom);
+  assert.equal(
+    dom.window.document.querySelector("a")?.getAttribute("href"),
+    PREFIX + encodeURIComponent("https://example.com/next"),
+  );
+});
