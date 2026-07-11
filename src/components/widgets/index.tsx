@@ -83,7 +83,7 @@ export function WeatherWidget() {
   const w = data ? wmo(data.code) : null;
   return (
     <div className="widget-card" id="widget-weather">
-      <div className="widget-head">Weather</div>
+      <div className="widget-head"><Icon name="cloud-sun" size={12} />Weather</div>
       <div className="weather-body">
         {data && w ? (
           <>
@@ -132,7 +132,7 @@ export function TodoWidget() {
 
   return (
     <div className="widget-card widget-todo">
-      <div className="widget-head">To-do</div>
+      <div className="widget-head"><Icon name="check" size={12} />To-do</div>
       <div className="todo-list">
         {todos.map((item, i) => (
           <label key={i} className={"todo-item" + (item.done ? " done" : "")}>
@@ -141,18 +141,20 @@ export function TodoWidget() {
               checked={item.done}
               onChange={() => persist(todos.map((t, j) => (j === i ? { ...t, done: !t.done } : t)))}
             />
-            {item.done && <Icon name="check" size={12} anim="none" aria-label="Completed" />}
             <span className="todo-text">{item.text}</span>
-            <span
+            <button
+              type="button"
               className="todo-del"
-              title="Remove"
+              aria-label={`Remove ${item.text}`}
+              title="Remove task"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 persist(todos.filter((_, j) => j !== i));
               }}
             >
               ×
-            </span>
+            </button>
           </label>
         ))}
       </div>
@@ -368,7 +370,7 @@ export function BatteryWidget() {
 
   return (
     <div className="widget-card widget-battery">
-      <div className="widget-head">Battery</div>
+      <div className="widget-head"><Icon name="battery-full" size={12} />Battery</div>
       {state === "ready" && info ? (
         <div className="battery-body">
           <span className="battery-icon" style={danger ? { color: "#e03838" } : undefined}>
