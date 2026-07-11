@@ -69,8 +69,21 @@ export function TabBar() {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
-  const drag = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; moved: boolean; touch: boolean } | null>(null);
+  const longPress = useRef<{ timer: number; fired: boolean }>({ timer: 0, fired: false });
   const groupById = new Map(tabGroups.map((group) => [group.id, group]));
+
+  const clearLongPress = () => {
+    if (longPress.current.timer) {
+      window.clearTimeout(longPress.current.timer);
+      longPress.current.timer = 0;
+    }
+  };
+
+  const menuPosition = (x: number, y: number) => ({
+    x: Math.max(8, Math.min(x, window.innerWidth - 168)),
+    y: Math.max(8, Math.min(y, window.innerHeight - 240)),
+  });
 
   useEffect(() => {
     if (!ctxMenu && !groupsOpen) return;
@@ -117,6 +130,7 @@ export function TabBar() {
   };
 
   const endDrag = () => {
+    clearLongPress();
     drag.current = null;
     setDragId(null);
     setOverId(null);
@@ -168,21 +182,51 @@ export function TabBar() {
             aria-label={tab.title}
             onContextMenu={(e) => {
               e.preventDefault();
-              setCtxMenu({
-                id: tab.id,
-                x: Math.min(e.clientX, window.innerWidth - 152),
-                y: Math.min(e.clientY, window.innerHeight - 112),
-              });
+              if (longPress.current.fired) {
+                // Android fires a native contextmenu right after our
+                // long-press timer has already opened the menu.
+                longPress.current.fired = false;
+                return;
+              }
+              setCtxMenu({ id: tab.id, ...menuPosition(e.clientX, e.clientY) });
             }}
             onPointerDown={(e) => {
               if (e.button !== 0) return;
               if ((e.target as HTMLElement).closest(".tab-close")) return;
-              drag.current = { id: tab.id, x: e.clientX, y: e.clientY, moved: false };
-              e.currentTarget.setPointerCapture(e.pointerId);
+              const touch = e.pointerType !== "mouse";
+              drag.current = { id: tab.id, x: e.clientX, y: e.clientY, moved: false, touch };
+              if (!touch) {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                return;
+              }
+              // Touch: leave the pointer uncaptured so swipes scroll the strip.
+              // A still press opens the tab menu — iOS never fires contextmenu.
+              clearLongPress();
+              longPress.current.fired = false;
+              longPress.current.timer = window.setTimeout(() => {
+                longPress.current.timer = 0;
+                const d = drag.current;
+                if (!d || d.moved) return;
+                drag.current = null;
+                const pos = menuPosition(d.x, d.y);
+                setCtxMenu((prev) => {
+                  if (prev) return prev;
+                  longPress.current.fired = true;
+                  return { id: d.id, ...pos };
+                });
+              }, 425);
             }}
             onPointerMove={(e) => {
               const d = drag.current;
               if (!d) return;
+              if (d.touch) {
+                // Finger is panning the strip; this is no longer a press or tap.
+                if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10) {
+                  clearLongPress();
+                  drag.current = null;
+                }
+                return;
+              }
               if (!d.moved) {
                 if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 5) return;
                 d.moved = true;
@@ -194,6 +238,7 @@ export function TabBar() {
               setOverId(over !== null && over !== d.id ? over : null);
             }}
             onPointerUp={(e) => {
+              clearLongPress();
               const d = drag.current;
               if (!d) return;
               if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);

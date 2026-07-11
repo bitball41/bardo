@@ -337,7 +337,7 @@ export function LayoutSection() {
   return (
     <>
       <div className="pane-label">Tab Bar Position</div>
-      <p className="pane-hint">Choose where the tab bar appears. Left and Right options show a vertical sidebar.</p>
+      <p className="pane-hint">Choose where the tab bar appears. Left and Right show a vertical sidebar; Bottom is the default on phones.</p>
       <div className="tab-pos-grid">
         {(["top", "bottom", "left", "right"] as TabPosition[]).map((pos) => (
           <button key={pos} className={cn("tab-pos-btn", s.tabPosition === pos && "active")} onClick={() => core.setSetting("tabPosition", pos)}>
