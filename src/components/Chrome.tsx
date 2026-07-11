@@ -248,11 +248,11 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
             key={entry.key}
             className="nav-btn"
             id="btn-copy-link"
-            title={copyState === "copied" ? "Link copied" : copyState === "error" ? "Could not copy link" : "Copy link"}
+            title={copyState === "copied" ? "Proxied link copied" : copyState === "error" ? "Could not copy link" : "Copy proxied link"}
             disabled={!activeUrl}
             onClick={async () => {
               try {
-                await copyText(activeUrl);
+                await copyText(core.proxiedUrl(activeUrl));
                 setCopyState("copied");
               } catch {
                 setCopyState("error");
