@@ -526,6 +526,20 @@ class BardoCore {
         const insertionIndex = from < lastGroupIndex ? lastGroupIndex : lastGroupIndex + 1;
         this.tabs.splice(insertionIndex, 0, tab);
       }
+    } else if (previousGroupId) {
+      // Keep a group contiguous when a tab is removed from its middle. Without
+      // this, the ungrouped tab visually splits the group while only the first
+      // run receives a header, which also makes collapse and drag targets feel
+      // broken.
+      const from = this.tabs.indexOf(tab);
+      const lastPreviousGroupIndex = this.tabs.reduce(
+        (last, candidate, index) => candidate !== tab && candidate.groupId === previousGroupId ? index : last,
+        -1,
+      );
+      if (lastPreviousGroupIndex >= 0 && from < lastPreviousGroupIndex) {
+        this.tabs.splice(from, 1);
+        this.tabs.splice(lastPreviousGroupIndex, 0, tab);
+      }
     }
     this.pruneEmptyTabGroups();
     this.saveSession();

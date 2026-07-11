@@ -131,13 +131,26 @@ export function TabBar() {
           const group = tab.groupId ? groupById.get(tab.groupId) : null;
           const firstInGroup = !!group && !tabs.slice(0, index).some((candidate) => candidate.groupId === group.id);
           const header = firstInGroup ? (
-            <div key={`group-${group.id}`} className={cn("tab-group-header", overGroupId === group.id && "drag-target")} data-group-id={group.id} style={{ "--group-color": group.color } as CSSProperties}>
-              <button className="tab-group-toggle" title={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`} onClick={() => core.toggleTabGroup(group.id)}>
+            <div
+              key={`group-${group.id}`}
+              className={cn("tab-group-header", group.collapsed && "collapsed", overGroupId === group.id && "drag-target")}
+              data-group-id={group.id}
+              style={{ "--group-color": group.color } as CSSProperties}
+            >
+              <button
+                className="tab-group-toggle"
+                title={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                aria-expanded={!group.collapsed}
+                onClick={() => core.toggleTabGroup(group.id)}
+              >
+                <svg className="tab-group-chevron" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M4.25 2.5 7.75 6l-3.5 3.5" />
+                </svg>
                 <i />
                 <strong>{group.name}</strong>
                 <small>{tabs.filter((candidate) => candidate.groupId === group.id).length}</small>
               </button>
-              <button className="tab-group-action" title={`Manage ${group.name}`} onClick={() => { setGroupsOpen(true); setEditingGroupId(group.id); setEditingName(group.name); setCreateForTab(null); }}><Icon name="settings" size={11} /></button>
+              <button className="tab-group-action" aria-label={`Manage ${group.name}`} title={`Manage ${group.name}`} onClick={() => { setGroupsOpen(true); setEditingGroupId(group.id); setEditingName(group.name); setCreateForTab(null); }}><Icon name="settings" size={11} /></button>
             </div>
           ) : null;
           if (group?.collapsed) return header;
@@ -229,11 +242,11 @@ export function TabBar() {
           );
         })}
       </div>
-      <button id="btn-new-tab" title="New tab" onClick={() => core.openTab()}>
+      <button id="btn-new-tab" aria-label="New tab" title="New tab" onClick={() => core.openTab()}>
         <Icon name="plus" size={13} />
       </button>
       <div className="tab-groups-wrap">
-        <button id="btn-tab-groups" title="Tab groups" aria-expanded={groupsOpen} onClick={() => setGroupsOpen((open) => !open)}>
+        <button id="btn-tab-groups" aria-label="Manage tab groups" title="Tab groups" aria-expanded={groupsOpen} onClick={() => setGroupsOpen((open) => !open)}>
           <Icon name="layout-grid" size={13} />
         </button>
         {groupsOpen && (
