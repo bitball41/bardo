@@ -55,6 +55,23 @@ const revalidate: RequestHandler = (_request, response, next) => {
   next();
 };
 
+// Static-only deployments (including the Cloudflare frontend preview) do not
+// have this endpoint. The client treats a missing/non-JSON response as a signal
+// that browsing engines are unavailable instead of entering a retry loop.
+app.get("/api/capabilities", revalidate, (_request, response) => {
+  response.json({
+    app: "bardo",
+    mode: "server",
+    browsing: true,
+    engines: {
+      sherpa: true,
+      scramjet: true,
+      klystron: true,
+      opulent: true,
+    },
+  });
+});
+
 const cacheProxyRuntime: RequestHandler = (_request, response, next) => {
   response.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
   next();
