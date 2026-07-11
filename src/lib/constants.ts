@@ -1,4 +1,4 @@
-import type { EngineName, Settings, ThemeName } from "./types";
+import type { EngineName, Settings, TabPosition, ThemeName } from "./types";
 
 export const PUBLIC_WISP_SERVERS = [
   "wss://wisp.mercurywork.shop/wisp/",
@@ -131,6 +131,22 @@ export const ACCENTS = [
   { value: "#22b8c8", title: "Cyan" },
 ];
 
+/**
+ * Phones default to bottom tabs: a top tab strip plus toolbar crowds the
+ * viewport, and vertical rails eat half the width. Saved settings always
+ * store tabPosition explicitly, so this only affects first runs and resets.
+ */
+function defaultTabPosition(): TabPosition {
+  try {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "top";
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    const phone = window.matchMedia("(max-width: 640px), (max-height: 500px)").matches;
+    return touch && phone ? "bottom" : "top";
+  } catch {
+    return "top";
+  }
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   theme: "dark",
   aboutBlankMode: false,
@@ -145,7 +161,7 @@ export const DEFAULT_SETTINGS: Settings = {
   panicUrl: "https://classroom.google.com",
   erudaEnabled: false,
   engine: "sherpa",
-  tabPosition: "top",
+  tabPosition: defaultTabPosition(),
   ntClock: true,
   restoreTabs: true,
   historyEnabled: true,

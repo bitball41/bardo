@@ -88,6 +88,8 @@ button, [role="button"], .nav-btn { touch-action: manipulation; }
   display: flex; align-items: stretch;
   z-index: 101;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   overflow: hidden;
 }
 
@@ -107,7 +109,9 @@ button, [role="button"], .nav-btn { touch-action: manipulation; }
   overflow: hidden;
   position: relative;
   transition: background .1s;
-  touch-action: none;
+  /* pan-x keeps the strip swipe-scrollable on touch; reordering stays on mouse,
+     and long-press opens the tab menu instead. */
+  touch-action: pan-x;
 }
 .tab:hover { background: var(--hover); }
 .tab.active {
@@ -951,6 +955,7 @@ kbd.kbd-inline {
   height: 36px;
   border-right: none;
   border-bottom: 1px solid var(--border);
+  touch-action: pan-y;
 }
 [data-tabs="left"] .tab.active {
   border-bottom: 1px solid var(--border);
@@ -1019,6 +1024,7 @@ kbd.kbd-inline {
   height: 36px;
   border-right: none;
   border-bottom: 1px solid var(--border);
+  touch-action: pan-y;
 }
 [data-tabs="right"] .tab.active {
   border-bottom: 1px solid var(--border);
