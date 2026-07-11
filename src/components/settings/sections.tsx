@@ -688,17 +688,34 @@ export function DiagnosticsSection({ onOpenDiagnostics }: { onOpenDiagnostics: (
 
 export function AdvancedSection({ compact }: { compact?: boolean }) {
   const s = useBardoSelector((snapshot) => snapshot.settings);
+  const engineSupport = useBardoSelector((snapshot) => snapshot.engineSupport);
+  const capabilitiesReady = useBardoSelector((snapshot) => snapshot.capabilitiesReady);
+  const deploymentMode = useBardoSelector((snapshot) => snapshot.deploymentMode);
   return (
     <>
       <div className="pane-label">Engine</div>
       <p className="pane-hint">Changes take effect after a reload.</p>
+      {capabilitiesReady && deploymentMode === "frontend-preview" && (
+        <p className="inline-notice warning">
+          Frontend preview only — this deployment does not include proxy runtimes or a browsing server.
+        </p>
+      )}
       <div className="engine-grid">
-        {ENGINES.map(({ id, name, hint }) => (
-          <button key={id} className={cn("engine-btn", (s.engine || "sherpa") === id && "active")} onClick={() => core.setSetting("engine", id)}>
-            <span className="engine-name">{name}</span>
-            <span className="engine-hint">{hint}</span>
-          </button>
-        ))}
+        {ENGINES.map(({ id, name, hint }) => {
+          const available = !capabilitiesReady || engineSupport[id];
+          return (
+            <button
+              key={id}
+              className={cn("engine-btn", (s.engine || "sherpa") === id && "active")}
+              disabled={!available}
+              title={available ? undefined : "Unavailable on this deployment"}
+              onClick={() => core.setSetting("engine", id)}
+            >
+              <span className="engine-name">{name}</span>
+              <span className="engine-hint">{available ? hint : "Unavailable on this deployment"}</span>
+            </button>
+          );
+        })}
       </div>
       {!compact && (
         <p className="pane-hint" style={{ marginTop: 8 }}>
