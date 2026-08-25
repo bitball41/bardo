@@ -26,7 +26,7 @@
     "motion": "^12.42.0",
     "preact": "^10.27.2",
     "puppeteer": "^25.2.1",
-    "sherpa": "https://github.com/bitball41/sherpa/archive/refs/tags/v1.1.0-sherpa.2.tar.gz",
+    "sherpa": "file:../sherpa",
     "tough-cookie": "^6.0.1",
     "tsx": "^4.21.0"
   },

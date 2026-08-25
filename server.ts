@@ -89,6 +89,20 @@ function runtimeStatic(directory: string) {
 }
 
 app.use("/sherpa/", allowServiceWorker, cacheProxyRuntime, runtimeStatic(sherpaPath));
+// Brand-neutral aliases injected into every proxied document (same files).
+app.get("/runtime/all.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(sherpaPath, "sherpa.all.js"), { cacheControl: false });
+});
+app.get("/runtime/sync.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(sherpaPath, "sherpa.sync.js"), { cacheControl: false });
+});
+app.get("/runtime/wasm.wasm", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/wasm");
+  response.sendFile(path.join(sherpaPath, "sherpa.wasm.wasm"), { cacheControl: false });
+});
+app.use("/runtime/", allowServiceWorker, cacheProxyRuntime, runtimeStatic(sherpaPath));
 app.use(
   "/scramjet/",
   allowServiceWorker,

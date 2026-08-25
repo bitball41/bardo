@@ -7,6 +7,7 @@ const EXPRESS = 'http://localhost:8080';
 const passthrough = [
   '/api',
   '/sherpa',
+  '/runtime',
   '/scramjet',
   '/baremux',
   '/epoxy',
