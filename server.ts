@@ -198,6 +198,7 @@ server.on("upgrade", (request, socket, head) => {
 });
 
 const port = Number.parseInt(process.env.PORT ?? "8080", 10);
-server.listen(port, () => {
-  console.log(`\nBardo  →  http://localhost:${port}\n`);
+const host = process.env.HOST ?? "127.0.0.1";
+server.listen(port, host, () => {
+  console.log(`\nBardo  →  http://${host}:${port}\n`);
 });
