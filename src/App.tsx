@@ -59,7 +59,7 @@ export default function App() {
   }, [s.tabPosition]);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--bookmarks-h", s.bookmarksVisible ? "36px" : "0px");
+    document.documentElement.style.setProperty("--bookmarks-h", s.bookmarksVisible ? "32px" : "0px");
   }, [s.bookmarksVisible]);
 
   useEffect(() => {

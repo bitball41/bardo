@@ -89,6 +89,23 @@ function runtimeStatic(directory: string) {
 }
 
 app.use("/sherpa/", allowServiceWorker, cacheProxyRuntime, runtimeStatic(sherpaPath));
+app.get("/scramjet/scramjet.runtime.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  const clientBundle = path.join(sherpaPath, "sherpa.client.js");
+  response.sendFile(existsSync(clientBundle) ? clientBundle : path.join(sherpaPath, "sherpa.all.js"), { cacheControl: false });
+});
+app.get("/scramjet/scramjet.runtime.sync.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(sherpaPath, "sherpa.sync.js"), { cacheControl: false });
+});
+app.get("/scramjet/scramjet.runtime.wasm", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/wasm");
+  response.sendFile(path.join(sherpaPath, "sherpa.wasm.wasm"), { cacheControl: false });
+});
+app.get("/scramjet/scramjet.sw.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(sherpaPath, "sherpa.all.js"), { cacheControl: false });
+});
 app.use(
   "/scramjet/",
   allowServiceWorker,

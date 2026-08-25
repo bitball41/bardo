@@ -92,6 +92,8 @@ export interface SherpaControllerFactory {
   SherpaController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
+    globals?: Record<string, string>;
+    errorPage?: Record<string, string>;
   }) => SherpaController;
 }
 

@@ -316,9 +316,9 @@ export function WidgetsSection() {
   return (
     <>
       <div className="pane-label">New-tab Page</div>
-      <p className="pane-hint">Toggle the pieces that show on the new-tab page.</p>
-      <ToggleRow name="Clock & greeting" hint="Live clock and time-of-day greeting" k="ntClock" s={s} icon="clock" />
-      <ToggleRow name="Quick links" hint="Shortcut buttons under the search bar" k="widgetQuickLinks" s={s} />
+      <p className="pane-hint">Every piece of the new-tab page starts off. Turn on only what you want.</p>
+      <ToggleRow name="Clock & greeting" hint="Off by default — live clock and time-of-day greeting" k="ntClock" s={s} icon="clock" />
+      <ToggleRow name="Quick links" hint="Off by default — shortcut buttons under the search bar" k="widgetQuickLinks" s={s} />
       <div className="pane-label" style={{ marginTop: 8 }}>Widget Panel</div>
       <p className="pane-hint">A tidy column under the search bar. All off by default.</p>
       <ToggleRow name="Date" hint="Day of the week and full date" k="widgetDate" s={s} icon="calendar-days" />
@@ -686,6 +686,43 @@ export function DiagnosticsSection({ onOpenDiagnostics }: { onOpenDiagnostics: (
   );
 }
 
+function EngineCompare() {
+  return (
+    <section className="engine-compare" aria-labelledby="engine-compare-title">
+      <div className="engine-compare-head">
+        <strong id="engine-compare-title">Sherpa vs Scramjet v1</strong>
+        <span>Same 1.x architecture. Sherpa is the fork; Scramjet v1 is the frozen upstream 1.1.0 package.</span>
+      </div>
+      <div className="engine-compare-grid">
+        <article>
+          <h4>Similar</h4>
+          <p>
+            Both are client-side service-worker proxies. A worker intercepts each request, fetches the real site over Wisp, then rewrites HTML, CSS, and JavaScript so <code>location</code>, <code>fetch</code>, cookies, and frames stay inside the proxy. JavaScript goes through a WASM rewriter. The page boots three scripts, then reads the original site URLs back out of the rewritten ones.
+          </p>
+        </article>
+        <article>
+          <h4>Different</h4>
+          <p>
+            Sherpa keeps the 1.x design and adds compatibility work upstream never shipped: spec srcset parsing, charset sniffing, RFC 6265 cookies, a real CSS <code>url()</code> scanner, selector rewriting, nested service-worker scopes, streamed documents, and a rewritten-response cache. In Bardo, rewritten pages use the same public names and URL prefix as Scramjet, so a filter looking at the page does not see a distinct “Sherpa” or “Bardo” product. Host APIs and this settings pane stay labeled Sherpa.
+          </p>
+        </article>
+        <article>
+          <h4>Which is faster</h4>
+          <p>
+            Sherpa. The rewriters measure about 1.3–1.8× (up to 5.3× on script-heavy HTML). Proxied page loads are about 1.12–1.26×. Repeat visits with the response cache are about 1.5–1.7× on a shaped link. Document time-to-first-byte stays flat as the page grows because the first kilobyte flushes before the rest of the download finishes. Wire size is about even with Scramjet 1.1.0.
+          </p>
+        </article>
+        <article>
+          <h4>How rewriting works</h4>
+          <p>
+            The service worker matches the engine prefix, decodes the real URL, and fetches it. HTML is parsed; every URL, inline style, and script is rewritten. Scripts wrap <code>location</code>, <code>eval</code>, and friends through the engine globals. CSS <code>url()</code>s and <code>srcset</code> candidates are rewritten in place. The client then unrewrites what the page reads — <code>el.href</code>, <code>document.cookie</code>, selectors — so the site sees itself, not the proxy.
+          </p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 export function AdvancedSection({ compact }: { compact?: boolean }) {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   const engineSupport = useBardoSelector((snapshot) => snapshot.engineSupport);
@@ -718,13 +755,16 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
         })}
       </div>
       {!compact && (
-        <p className="pane-hint" style={{ marginTop: 8 }}>
-          Sherpa is available under the AGPL-3.0 license.{" "}
-          <a href="https://github.com/bitball41/sherpa" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
-            View Sherpa source code
-          </a>
-          .
-        </p>
+        <>
+          <p className="pane-hint" style={{ marginTop: 8 }}>
+            Sherpa is available under the AGPL-3.0 license.{" "}
+            <a href="https://github.com/bitball41/sherpa" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+              View Sherpa source code
+            </a>
+            .
+          </p>
+          <EngineCompare />
+        </>
       )}
       <div className="pane-label" style={{ marginTop: 16 }}>Developer Tools</div>
       <ToggleRow name="Enable Eruda DevTools" hint="Shows a devtools button in the toolbar to inspect and debug the page" k="erudaEnabled" s={s} />

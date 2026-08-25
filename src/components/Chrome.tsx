@@ -286,14 +286,20 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
             <Icon name="history" size={15} />
           </button>
         );
-      case "bookmarks":
+      case "bookmarks": {
+        const currentBookmark = settings.bookmarks.find((bookmark) => bookmark.url === activeUrl);
         return (
           <button
             key={entry.key}
-            className="nav-btn"
+            className={cn("nav-btn", currentBookmark && "saved")}
             id="btn-bookmark"
-            title="Bookmark this page"
+            title={currentBookmark ? "Remove bookmark" : "Bookmark this page"}
             onClick={() => {
+              if (currentBookmark) {
+                core.removeBookmark(currentBookmark.id);
+                toast.info("Bookmark removed");
+                return;
+              }
               const result = core.addBookmark();
               if (result.status === "added") toast.success(`Bookmarked “${result.title}”`);
               else if (result.status === "duplicate") toast.info("Already bookmarked");
@@ -303,6 +309,7 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
             <Icon name="bookmark" size={15} />
           </button>
         );
+      }
       case "shortcuts":
         return <WaffleMenu key={entry.key} />;
       case "settings":
