@@ -16,6 +16,7 @@ import {
   SVC_PREFIX_SHERPA,
   SVC_PREFIX_KLYSTRON,
   SVC_PREFIX_OPULENT,
+  SHERPA_RUNTIME,
   THEMES,
   TODOS_KEY,
 } from "./constants";
@@ -1137,6 +1138,16 @@ class BardoCore {
     bookmarks.splice(to, 0, moved);
     this.patchSettings({ bookmarks });
   }
+  moveBookmarkTo(id: number, index: number) {
+    const bookmarks = [...this.settings.bookmarks];
+    const from = bookmarks.findIndex((b) => b.id === id);
+    if (from < 0) return;
+    const to = Math.max(0, Math.min(index, bookmarks.length - 1));
+    if (from === to) return;
+    const [moved] = bookmarks.splice(from, 1);
+    bookmarks.splice(to, 0, moved);
+    this.patchSettings({ bookmarks });
+  }
   importBookmarks(raw: unknown): number {
     const source = Array.isArray(raw) ? raw : raw && typeof raw === "object" && Array.isArray((raw as any).bookmarks) ? (raw as any).bookmarks : null;
     if (!source) throw new Error("This file doesn't contain a bookmarks list.");
@@ -1367,6 +1378,7 @@ class BardoCore {
         all: "/scramjet/scramjet.all.js",
         sync: "/scramjet/scramjet.sync.js",
       },
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();
@@ -1385,7 +1397,7 @@ class BardoCore {
   }
 
   private async initSherpa() {
-    this.setStatus("Starting Sherpa…");
+    this.setStatus("Starting engine…");
     const [, ctrl, reg] = await Promise.all([
       this.setupTransport(),
       this.startSherpaController(),
@@ -1404,15 +1416,41 @@ class BardoCore {
     const ctrl = new SherpaController({
       prefix: SVC_PREFIX_SHERPA,
       files: {
-        wasm: "/sherpa/sherpa.wasm.wasm",
-        all: "/sherpa/sherpa.all.js",
-        sync: "/sherpa/sherpa.sync.js",
+        wasm: SHERPA_RUNTIME.wasm,
+        all: SHERPA_RUNTIME.all,
+        sync: SHERPA_RUNTIME.sync,
       },
+      globals: {
+        wrapfn: "$scramjet$wrap",
+        wrappropertybase: "$scramjet__",
+        wrappropertyfn: "$scramjet$prop",
+        cleanrestfn: "$scramjet$clean",
+        importfn: "$scramjet$import",
+        rewritefn: "$scramjet$rewrite",
+        metafn: "$scramjet$meta",
+        setrealmfn: "$scramjet$setrealm",
+        pushsourcemapfn: "$scramjet$pushsourcemap",
+        trysetfn: "$scramjet$tryset",
+        templocid: "$scramjet$temploc",
+        tempunusedid: "$scramjet$tempunused",
+      },
+      errorPage: {
+        title: "This page didn't load",
+        repoUrl: "",
+        logo: "",
+      },
+      // Source maps retain original rewrite spans and inflate rewritten
+      // scripts. Bardo's normal browsing path does not need that debug data.
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();
     } catch (e: any) {
       if (e.message?.includes("object store") || e.message?.includes("IDBDatabase")) {
+        await new Promise<void>((resolve) => {
+          const request = indexedDB.deleteDatabase("$scramjet");
+          request.onsuccess = request.onerror = request.onblocked = () => resolve();
+        });
         await new Promise<void>((resolve) => {
           const request = indexedDB.deleteDatabase("$sherpa");
           request.onsuccess = request.onerror = request.onblocked = () => resolve();
@@ -1492,7 +1530,7 @@ class BardoCore {
     for (const reg of await navigator.serviceWorker.getRegistrations()) {
       if (
         reg.scope.includes(SVC_PREFIX) ||
-        reg.scope.includes(SVC_PREFIX_SHERPA) ||
+        reg.scope.includes("/sherpa/service/") ||
         reg.scope.includes(SVC_PREFIX_KLYSTRON) ||
         reg.scope.includes(SVC_PREFIX_OPULENT)
       ) {

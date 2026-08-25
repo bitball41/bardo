@@ -18,7 +18,7 @@ const SEARCH_TERMS: Record<PaneId, string> = {
   privacy: "privacy history local data clear session only restore tabs storage",
   cloaker: "cloak tab title favicon disguise canvas drive classroom about:blank launcher popup",
   safety: "panic key quick exit shortcut redirect escape emergency safe page",
-  advanced: "proxy sherpa engine developer tools eruda cache reload about",
+  advanced: "proxy sherpa scramjet engine rewrite cache streaming developer tools eruda compare faster",
   diagnostics: "health status connection network storage performance service worker event log troubleshoot",
 };
 
