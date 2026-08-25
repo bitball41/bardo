@@ -60,7 +60,7 @@ export function BookmarksBar() {
   const openEditor = (bookmark?: Bookmark) => {
     const current = bookmark || settings.bookmarks.find((candidate) => candidate.url === activeTab?.url);
     setDraft({
-      title: current?.title || activeTab?.title || "",
+      title: current?.title || (activeTab?.url && activeTab.title !== "New Tab" ? activeTab.title : "") || "",
       url: current?.url || activeTab?.url || "",
       folder: current?.folder || "",
       pinnedNewTab: current?.pinnedNewTab || false,
