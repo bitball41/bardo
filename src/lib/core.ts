@@ -1367,6 +1367,11 @@ class BardoCore {
         all: "/scramjet/scramjet.all.js",
         sync: "/scramjet/scramjet.sync.js",
       },
+      // Source maps preserve original rewrite spans in page memory and error
+      // capture adds wrappers to every try/catch. Neither is useful for Bardo's
+      // production browsing path, and both expose metadata the page never
+      // requested.
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();
@@ -1408,6 +1413,10 @@ class BardoCore {
         all: "/sherpa/sherpa.all.js",
         sync: "/sherpa/sherpa.sync.js",
       },
+      // Keep production pages free of source-map snapshots and diagnostic
+      // wrappers. This is a privacy/fidelity choice, not an attempt to hide
+      // rendered site content from a client-side content filter.
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();

@@ -19,8 +19,9 @@ the proxy transport and service-worker runtime.
 - Session restore — open tabs, order, pins, and groups persist across restarts
 - Vertical (left/right) or horizontal (top/bottom) tab bar, with a collapsible
   sidebar in vertical modes
-- New Tab page: live clock/greeting, editable quick-links grid, pinned
-  bookmarks and saved tab-group shelves, engine status line
+- New Tab page: optional clock/greeting, editable quick-links grid, pinned
+  bookmarks and saved tab-group shelves, engine status line (optional widgets
+  start disabled)
 - Bookmarks bar and library: folders, search, pin-to-New-Tab, undo on delete,
   JSON import/export
 - Full history page: grouped by day, searchable, per-entry delete, clear-all
@@ -76,6 +77,11 @@ npm start
 
 Bardo listens on `PORT` when set and otherwise uses
 `http://localhost:8080`.
+
+Cross-origin isolation is disabled by default so ordinary fonts, favicons, and
+third-party page resources are not rejected by COEP. Set
+`BARDO_CROSS_ORIGIN_ISOLATION=1` only when the optional synchronous-XHR path
+needs `SharedArrayBuffer`.
 
 For interface development, keep the proxy server running with `npm run server`
 and run `npm run dev` in a second terminal. Vite serves the UI on port 5173 and

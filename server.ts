@@ -10,6 +10,12 @@ import { opulentRouter, opulentUpgrade } from "./server/opulent.js";
 
 const app = express();
 const rootDir = __dirname;
+// Cross-origin isolation is only required for the optional synchronous-XHR
+// path. Applying COEP to the browser shell by default blocks ordinary
+// cross-origin UI assets (favicons, fonts) and can also reject third-party
+// resources that a proxied page legitimately embeds. Keep it opt-in for
+// deployments that explicitly need SharedArrayBuffer-based features.
+const crossOriginIsolation = process.env.BARDO_CROSS_ORIGIN_ISOLATION === "1";
 
 app.use(compression());
 
@@ -40,8 +46,10 @@ app.use((_request, response, next) => {
   response.setHeader("Content-Security-Policy", csp);
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("Referrer-Policy", "no-referrer");
-  response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  if (crossOriginIsolation) {
+    response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  }
   next();
 });
 
