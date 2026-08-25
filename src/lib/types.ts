@@ -78,7 +78,15 @@ export interface ScramjetControllerFactory {
   ScramjetController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
+    flags?: EngineRewriteFlags;
   }) => ScramjetController;
+}
+
+export interface EngineRewriteFlags {
+  /** Source maps retain original rewrite spans and are unnecessary in production. */
+  sourcemaps?: boolean;
+  /** Error-capture wrappers add noise to page scripts when debugging is off. */
+  captureErrors?: boolean;
 }
 
 export interface SherpaController {
@@ -92,6 +100,7 @@ export interface SherpaControllerFactory {
   SherpaController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
+    flags?: EngineRewriteFlags;
   }) => SherpaController;
 }
 
