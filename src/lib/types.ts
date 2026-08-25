@@ -92,6 +92,7 @@ export interface SherpaControllerFactory {
   SherpaController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
+    errorPage?: { title?: string; repoUrl?: string; [key: string]: unknown };
   }) => SherpaController;
 }
 

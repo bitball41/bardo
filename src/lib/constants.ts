@@ -8,9 +8,17 @@ export const PUBLIC_WISP_SERVERS = [
 ];
 
 export const SVC_PREFIX = "/scramjet/service/";
-export const SVC_PREFIX_SHERPA = "/sherpa/service/";
+/** Neutral page-facing prefix — proxied documents must not advertise "sherpa". */
+export const SVC_PREFIX_SHERPA = "/runtime/service/";
 export const SVC_PREFIX_KLYSTRON = "/klystron/";
 export const SVC_PREFIX_OPULENT = "/opulent/";
+
+/** Paths injected into every Sherpa-proxied document (keep brand-neutral). */
+export const SHERPA_FILES = {
+  wasm: "/runtime/wasm.wasm",
+  all: "/runtime/all.js",
+  sync: "/runtime/sync.js",
+} as const;
 
 export interface EngineInfo {
   id: EngineName;
@@ -24,7 +32,7 @@ export interface EngineInfo {
 }
 
 export const ENGINES: EngineInfo[] = [
-  { id: "sherpa", name: "Sherpa", hint: "Default — owned Scramjet fork", kind: "client", version: "1.1.0-sherpa.2", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
+  { id: "sherpa", name: "Sherpa", hint: "Default — owned Scramjet fork", kind: "client", version: "1.1.0-sherpa.3", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
   { id: "scramjet", name: "Scramjet v1", hint: "Stable alternative", kind: "client", version: "1.1.0", swPath: "/sw.js", swScope: SVC_PREFIX },
   { id: "klystron", name: "Klystron", hint: "Server-side — beta", kind: "server", version: "in-repo", swPath: "/sw-klystron.js", swScope: SVC_PREFIX_KLYSTRON },
   { id: "opulent", name: "OpulentAPI", hint: "Server-side — JS rendering, beta", kind: "server", version: "in-repo", swPath: "/sw-opulent.js", swScope: SVC_PREFIX_OPULENT },
@@ -162,12 +170,12 @@ export const DEFAULT_SETTINGS: Settings = {
   erudaEnabled: false,
   engine: "sherpa",
   tabPosition: defaultTabPosition(),
-  ntClock: true,
+  ntClock: false,
   restoreTabs: true,
   historyEnabled: true,
   sessionOnly: false,
   moreContrast: false,
-  widgetQuickLinks: true,
+  widgetQuickLinks: false,
   widgetNotes: false,
   widgetWeather: false,
   widgetDate: false,

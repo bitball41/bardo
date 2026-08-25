@@ -2,7 +2,7 @@ if (navigator.userAgent.includes("Firefox")) {
   Object.defineProperty(globalThis, "crossOriginIsolated", { value: true });
 }
 
-importScripts("/sherpa/sherpa.all.js");
+importScripts("/runtime/all.js");
 
 const { SherpaServiceWorker } = $sherpaLoadWorker();
 const sherpa = new SherpaServiceWorker();

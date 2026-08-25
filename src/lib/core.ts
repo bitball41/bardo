@@ -16,6 +16,7 @@ import {
   SVC_PREFIX_SHERPA,
   SVC_PREFIX_KLYSTRON,
   SVC_PREFIX_OPULENT,
+  SHERPA_FILES,
   THEMES,
   TODOS_KEY,
 } from "./constants";
@@ -456,8 +457,8 @@ class BardoCore {
     } catch {
       return; // cross-origin document — nothing we can (or should) touch
     }
-    if (!doc || (doc as any).__bardoLinkHook) return;
-    (doc as any).__bardoLinkHook = true;
+    if (!doc || (doc as any).__linkHook) return;
+    (doc as any).__linkHook = true;
     const handler = (e: MouseEvent) => this.handleFrameLinkClick(e);
     doc.addEventListener("click", handler, true);
     doc.addEventListener("auxclick", handler, true);
@@ -1404,9 +1405,13 @@ class BardoCore {
     const ctrl = new SherpaController({
       prefix: SVC_PREFIX_SHERPA,
       files: {
-        wasm: "/sherpa/sherpa.wasm.wasm",
-        all: "/sherpa/sherpa.all.js",
-        sync: "/sherpa/sherpa.sync.js",
+        wasm: SHERPA_FILES.wasm,
+        all: SHERPA_FILES.all,
+        sync: SHERPA_FILES.sync,
+      },
+      errorPage: {
+        title: "Something went wrong",
+        repoUrl: "",
       },
     });
     try {
@@ -1493,6 +1498,7 @@ class BardoCore {
       if (
         reg.scope.includes(SVC_PREFIX) ||
         reg.scope.includes(SVC_PREFIX_SHERPA) ||
+        reg.scope.includes("/sherpa/") ||
         reg.scope.includes(SVC_PREFIX_KLYSTRON) ||
         reg.scope.includes(SVC_PREFIX_OPULENT)
       ) {

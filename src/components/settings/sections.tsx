@@ -320,7 +320,7 @@ export function WidgetsSection() {
       <ToggleRow name="Clock & greeting" hint="Live clock and time-of-day greeting" k="ntClock" s={s} icon="clock" />
       <ToggleRow name="Quick links" hint="Shortcut buttons under the search bar" k="widgetQuickLinks" s={s} />
       <div className="pane-label" style={{ marginTop: 8 }}>Widget Panel</div>
-      <p className="pane-hint">A tidy column under the search bar. All off by default.</p>
+      <p className="pane-hint">A tidy column under the search bar. Everything starts off.</p>
       <ToggleRow name="Date" hint="Day of the week and full date" k="widgetDate" s={s} icon="calendar-days" />
       <ToggleRow name="Weather" hint="Local conditions, no permission prompt" k="widgetWeather" s={s} icon="cloud-sun" />
       <ToggleRow name="Battery" hint="Live level and charging time when your browser allows it" k="widgetBattery" s={s} icon="battery-medium" />
@@ -398,6 +398,7 @@ export function BookmarksSection() {
   return (
     <>
       <div className="pane-label">Bookmarks Bar</div>
+      <p className="pane-hint">A slim strip under the toolbar. Folders and search live in the manage menu.</p>
       <label className="setting-row toggle-row">
         <span className="setting-name">Show bookmarks bar</span>
         <Toggle checked={s.bookmarksVisible} onChange={(v) => core.setSetting("bookmarksVisible", v)} />
@@ -446,14 +447,16 @@ export function BookmarksSection() {
                     aria-label={`Bookmark title for ${bookmark.url}`}
                     onChange={(event) => core.updateBookmark(bookmark.id, { title: event.currentTarget.value })}
                   />
-                  <input
-                    className="setting-input bm-folder-input"
-                    list="bardo-bookmark-folders"
-                    value={bookmark.folder || ""}
-                    placeholder="No folder"
-                    aria-label={`Folder for ${bookmark.title}`}
-                    onChange={(event) => core.updateBookmark(bookmark.id, { folder: event.currentTarget.value })}
-                  />
+                  <div className="bm-settings-meta">
+                    <input
+                      className="setting-input bm-folder-input"
+                      list="bardo-bookmark-folders"
+                      value={bookmark.folder || ""}
+                      placeholder="No folder"
+                      aria-label={`Folder for ${bookmark.title}`}
+                      onChange={(event) => core.updateBookmark(bookmark.id, { folder: event.currentTarget.value })}
+                    />
+                  </div>
                 </div>
                 <div className="bm-row-actions">
                   <button className={cn("mini-action", bookmark.pinnedNewTab && "active")} title={bookmark.pinnedNewTab ? "Unpin from New Tab" : "Pin to New Tab"} onClick={() => core.updateBookmark(bookmark.id, { pinnedNewTab: !bookmark.pinnedNewTab })}>
