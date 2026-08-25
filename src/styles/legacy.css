@@ -197,8 +197,9 @@ body.tab-dragging .nav-frame { pointer-events: none; }
 .nav-btn svg { width: 15px; height: 15px; }
 .nav-btn:hover:not(:disabled) { background: var(--hover); }
 .nav-btn:active:not(:disabled) { background: var(--active); transform: scale(.9); }
-  .nav-btn.saved { color: var(--accent); }
-  .nav-btn.saved:hover:not(:disabled) { color: var(--accent); }
+.nav-btn:disabled { color: var(--muted); cursor: default; }
+.nav-btn.saved { color: var(--accent); }
+.nav-btn.saved:hover:not(:disabled) { color: var(--accent); }
 
 #nav-btns { display: flex; gap: 2px; }
 

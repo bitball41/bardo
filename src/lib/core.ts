@@ -1378,6 +1378,7 @@ class BardoCore {
         all: "/scramjet/scramjet.all.js",
         sync: "/scramjet/scramjet.sync.js",
       },
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();
@@ -1438,6 +1439,9 @@ class BardoCore {
         repoUrl: "",
         logo: "",
       },
+      // Source maps retain original rewrite spans and inflate rewritten
+      // scripts. Bardo's normal browsing path does not need that debug data.
+      flags: { sourcemaps: false, captureErrors: false },
     });
     try {
       await ctrl.init();

@@ -78,7 +78,15 @@ export interface ScramjetControllerFactory {
   ScramjetController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
+    flags?: EngineRewriteFlags;
   }) => ScramjetController;
+}
+
+export interface EngineRewriteFlags {
+  /** Original-source mappings are useful for debugging but expensive in normal browsing. */
+  sourcemaps?: boolean;
+  /** Diagnostic try/catch wrappers add page code when debugging is disabled. */
+  captureErrors?: boolean;
 }
 
 export interface SherpaController {
@@ -94,6 +102,7 @@ export interface SherpaControllerFactory {
     files: { wasm: string; all: string; sync: string };
     globals?: Record<string, string>;
     errorPage?: Record<string, string>;
+    flags?: EngineRewriteFlags;
   }) => SherpaController;
 }
 
