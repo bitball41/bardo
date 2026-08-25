@@ -1,15 +1,15 @@
 {
   "name": "Bardo",
-  "install": "npm ci && npm run build",
+  "install": "cd /agent/repos/bardo && npm ci && npm run build",
   "terminals": [
     {
       "name": "server",
-      "command": "HOST=0.0.0.0 npm start",
+      "command": "cd /agent/repos/bardo && HOST=0.0.0.0 npm start",
       "description": "Bardo proxy + production UI server on http://localhost:8080 (serves Sherpa/Scramjet runtime assets, wisp WebSocket, and the Klystron/Opulent server-side engines). Requires `npm run build` to have produced dist/ first (done in install)."
     },
     {
       "name": "vite",
-      "command": "npm run dev -- --host",
+      "command": "cd /agent/repos/bardo && npm run dev -- --host",
       "description": "Vite UI dev server with HMR on http://localhost:5173, proxying /api, /wisp and the proxy-runtime paths to the server terminal on port 8080. Use this for interface development."
     }
   ],
