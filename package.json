@@ -26,7 +26,7 @@
     "motion": "^12.42.0",
     "preact": "^10.27.2",
     "puppeteer": "^25.2.1",
-    "sherpa": "file:../sherpa",
+    "sherpa": "https://github.com/bitball41/sherpa/archive/refs/heads/cursor/page-surface-scramjet-compat-dcd9.tar.gz",
     "tough-cookie": "^6.0.1",
     "tsx": "^4.21.0"
   },
