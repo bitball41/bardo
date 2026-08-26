@@ -1,0 +1,49 @@
+name: Deploy Bardo to production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bardo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Configure deployment key
+        env:
+          BARDO_DEPLOY_SSH_KEY: ${{ secrets.BARDO_DEPLOY_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          install -m 600 /dev/null ~/.ssh/bardo_deploy
+          printf '%s\n' "$BARDO_DEPLOY_SSH_KEY" > ~/.ssh/bardo_deploy
+          printf '%s\n' '3.12.85.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIORQAhBaSGIV313f1KzRW5DaxSMUnD98OPJS02W6hM3Y' > ~/.ssh/known_hosts
+
+      - name: Build and deploy the pushed commit
+        run: |
+          ssh \
+            -i ~/.ssh/bardo_deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            ubuntu@3.12.85.177 \
+            "deploy $GITHUB_SHA"
+
+      - name: Verify the public site
+        run: |
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --retry 10 \
+            --retry-connrefused \
+            --retry-delay 3 \
+            https://bardo-live.cj-nissim.workers.dev/api/capabilities
