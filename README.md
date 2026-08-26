@@ -50,8 +50,8 @@ the proxy transport and service-worker runtime.
 
 ### System
 
-- Four selectable proxy engines: Sherpa (default), Scramjet v1, Klystron
-  (server-side), and OpulentAPI (server-side, with headless-render fallback)
+- Three selectable proxy engines: Sherpa (default), Scramjet v1, and Klystron
+  (server-side)
 - Eruda devtools toggle, force reload / clear cache, restore default settings
 - Full keyboard shortcut set (tab switching, navigation, new tab, history,
   close tab, reload, escape-to-close overlays)

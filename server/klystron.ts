@@ -13,8 +13,8 @@
 // header allow-list drops `content-length`/`x-frame-options` (we re-frame and
 // re-length the body), CSP is stripped per-response, and basic SSRF guards block
 // requests at private/loopback hosts. The SSRF guard, header handling, and URL
-// rewriter are shared with OpulentAPI (./proxy-shared.ts) so both engines get
-// the same protections.
+// rewriter live in ./proxy-shared.ts so the server-side engine gets a single
+// copy of those protections.
 
 import express, { Router, type Request, type Response } from "express";
 import { Readable } from "node:stream";

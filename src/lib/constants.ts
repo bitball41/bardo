@@ -17,7 +17,6 @@ export const SHERPA_RUNTIME = {
   sync: "/scramjet/scramjet.runtime.sync.js",
 } as const;
 export const SVC_PREFIX_KLYSTRON = "/klystron/";
-export const SVC_PREFIX_OPULENT = "/opulent/";
 
 export interface EngineInfo {
   id: EngineName;
@@ -34,7 +33,6 @@ export const ENGINES: EngineInfo[] = [
   { id: "sherpa", name: "Sherpa", hint: "default. faster.", kind: "client", version: "1.1.0-sherpa.2", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
   { id: "scramjet", name: "Scramjet v1", hint: "the original", kind: "client", version: "1.1.0", swPath: "/sw.js", swScope: SVC_PREFIX },
   { id: "klystron", name: "Klystron", hint: "beta", kind: "server", version: "in-repo", swPath: "/sw-klystron.js", swScope: SVC_PREFIX_KLYSTRON },
-  { id: "opulent", name: "OpulentAPI", hint: "beta. renders js.", kind: "server", version: "in-repo", swPath: "/sw-opulent.js", swScope: SVC_PREFIX_OPULENT },
 ];
 
 export const ENGINE_BY_ID = Object.fromEntries(ENGINES.map((e) => [e.id, e])) as Record<EngineName, EngineInfo>;

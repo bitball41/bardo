@@ -25,7 +25,7 @@ export type ThemeName =
   | "petal";
 
 export type TabPosition = "top" | "bottom" | "left" | "right";
-export type EngineName = "scramjet" | "klystron" | "opulent" | "sherpa";
+export type EngineName = "scramjet" | "klystron" | "sherpa";
 export type WallpaperType = "none" | "gradient" | "image";
 
 export type CustomThemeId = `custom:${string}`;

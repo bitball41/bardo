@@ -15,7 +15,6 @@ import {
   SVC_PREFIX,
   SVC_PREFIX_SHERPA,
   SVC_PREFIX_KLYSTRON,
-  SVC_PREFIX_OPULENT,
   SHERPA_RUNTIME,
   THEMES,
   TODOS_KEY,
@@ -116,7 +115,6 @@ class BardoCore {
     sherpa: false,
     scramjet: false,
     klystron: false,
-    opulent: false,
   };
   private deploymentMode: "server" | "frontend-preview" = "frontend-preview";
 
@@ -184,7 +182,7 @@ class BardoCore {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
       const settings = raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
-      if (!["scramjet", "klystron", "opulent", "sherpa"].includes(settings.engine)) {
+      if (!["scramjet", "klystron", "sherpa"].includes(settings.engine)) {
         settings.engine = DEFAULT_SETTINGS.engine;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       }
@@ -363,7 +361,6 @@ class BardoCore {
       sherpa: false,
       scramjet: false,
       klystron: false,
-      opulent: false,
     };
 
     try {
@@ -935,7 +932,6 @@ class BardoCore {
   private activeSvcPrefix() {
     if (this.settings.engine === "sherpa") return SVC_PREFIX_SHERPA;
     if (this.settings.engine === "klystron") return SVC_PREFIX_KLYSTRON;
-    if (this.settings.engine === "opulent") return SVC_PREFIX_OPULENT;
     return SVC_PREFIX;
   }
 
@@ -1317,7 +1313,6 @@ class BardoCore {
     }
     try {
       if (this.settings.engine === "klystron") await this.initKlystron();
-      else if (this.settings.engine === "opulent") await this.initOpulent();
       else if (this.settings.engine === "sherpa") await this.initSherpa();
       else await this.initScramjet();
     } catch (e: any) {
@@ -1488,31 +1483,6 @@ class BardoCore {
     this.flushPending();
   }
 
-  // OpulentAPI is also a server-side proxy (same shape as Klystron), with an
-  // automatic headless-render fallback on the server for JS-heavy pages — no
-  // extra client-side wiring needed for that part.
-  private async initOpulent() {
-    this.wispUrl = null;
-    this.setStatus("Starting OpulentAPI…");
-    const reg = await this.registerSW("/sw-opulent.js", SVC_PREFIX_OPULENT);
-    this.scheduleSWUpdate(reg);
-    window.__bardoCtrl = {
-      _prefix: SVC_PREFIX_OPULENT,
-      createFrame: (iframe: HTMLIFrameElement) =>
-        new PrefixFrame(iframe, SVC_PREFIX_OPULENT, (href) => {
-          try {
-            return decodeURIComponent(href.slice((location.origin + SVC_PREFIX_OPULENT).length));
-          } catch {
-            return null;
-          }
-        }),
-    };
-    this.ctrlReady = true;
-    sessionStorage.removeItem("bardo-sw-fix-attempted");
-    this.setStatus("");
-    this.flushPending();
-  }
-
   private flushPending() {
     recordConnectionSuccess(ENGINE_BY_ID[this.settings.engine]?.name ?? this.settings.engine);
     if (this.pendingUrl) {
@@ -1532,7 +1502,8 @@ class BardoCore {
         reg.scope.includes(SVC_PREFIX) ||
         reg.scope.includes("/sherpa/service/") ||
         reg.scope.includes(SVC_PREFIX_KLYSTRON) ||
-        reg.scope.includes(SVC_PREFIX_OPULENT)
+        // Leftover from the removed OpulentAPI engine.
+        reg.scope.includes("/opulent/")
       ) {
         await reg.unregister();
       }

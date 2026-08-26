@@ -1,4 +1,4 @@
-// Shared primitives for Bardo's server-side proxy engines (Klystron, OpulentAPI).
+// Shared primitives for Bardo's server-side proxy engine (Klystron).
 //
 // Security-relevant logic — the SSRF guard and the URL rewriter in particular —
 // lives here once so every server-side engine gets the same protections instead

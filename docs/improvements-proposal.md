@@ -14,8 +14,8 @@ should go first.
 | 1 | SSRF guard bypasses (server-side engines) | **P1 — security** | M | Proxy can reach loopback, LAN, and cloud metadata |
 | 2 | No timeout on upstream fetches | P1 — security/DoS | S | A slow upstream ties up server sockets/memory |
 | 3 | Cookie-jar eviction is FIFO, no TTL | P2 — robustness | S | Active sessions evicted early; jars never expire |
-| 4 | Double jsdom parse in OpulentAPI | P3 — performance | S | Every HTML page parsed twice on the hot path |
-| 5 | `puppeteer` is a hard prod dependency | P3 — DX/footprint | S | ~Chromium download for all installs, incl. client-only users |
+| 4 | ~~Double jsdom parse in OpulentAPI~~ | **resolved** — engine removed | — | — |
+| 5 | ~~`puppeteer` is a hard prod dependency~~ | **resolved** — engine removed | — | — |
 | 6 | No automated tests | P4 — hygiene | M | Security-critical code has zero regression coverage |
 | 7 | No CI / linter | P4 — hygiene | S | Breakage and drift land silently |
 
@@ -30,7 +30,7 @@ directly to the source:
   `server/proxy-shared.ts` now decodes IPv4-mapped IPv6 addresses, and a new
   `assertSafeHost` resolves each hostname and rejects if the name — or any
   address it resolves to — is internal. It's wired into every upstream hop
-  (`fetchUpstream`) and both engines' WebSocket upgrade paths. The remaining
+  (`fetchUpstream`) and Klystron's WebSocket upgrade path. The remaining
   DNS-rebinding *socket pinning* (Part 2 below) is left as follow-up.
 - **Item 2 (upstream fetch timeout).** A 20 s per-hop `AbortSignal.timeout` on
   the upstream `fetch`.
@@ -38,7 +38,9 @@ directly to the source:
   guard with 34 cases, including both bypasses, on Node's built-in test runner
   via `npm test` — no new dependency.
 
-Items 3, 4, 5, 7, the rest of 6, and item 1 Part 2 remain proposals below.
+Items 3, 7, the rest of 6, and item 1 Part 2 remain proposals below.
+OpulentAPI (and its `puppeteer` / Chromium download) was later removed from
+the repo, which also resolves items 4 and 5.
 
 ---
 
@@ -47,11 +49,11 @@ Items 3, 4, 5, 7, the rest of 6, and item 1 Part 2 remain proposals below.
 ### 1. SSRF guard can be bypassed two ways
 
 **Where:** `server/proxy-shared.ts` → `isBlockedHost()` (lines 16–37), used by
-`server/klystron.ts:96`, `server/opulent.ts:141`, and per-redirect-hop in
-`fetchUpstream` (`server/proxy-shared.ts:108–109`).
+`server/klystron.ts` and per-redirect-hop in
+`fetchUpstream` (`server/proxy-shared.ts`).
 
-`isBlockedHost` is the only thing standing between the server-side engines
-(Klystron, OpulentAPI) and Bardo's own network. It inspects the **literal
+`isBlockedHost` is the only thing standing between the server-side engine
+(Klystron) and Bardo's own network. It inspects the **literal
 hostname string** and never looks at what that host actually resolves to. Two
 gaps are confirmed by running the guard against real inputs:
 
@@ -84,7 +86,7 @@ checks match it.)
 **Impact.** Either bypass lets a proxied request reach the loopback interface,
 the host's LAN, or the cloud metadata endpoint — the classic path to stealing
 instance credentials. This is reachable through the normal proxy URL
-(`/klystron/<encoded>` or `/opulent/<encoded>`) with no special access.
+(`/klystron/<encoded>`) with no special access.
 
 **Fix — two parts.**
 
@@ -178,8 +180,7 @@ in front of every hop is a large improvement over today's string check.
 redirect: "manual" })`.
 
 There's no `AbortSignal`, so a slow or deliberately stalling upstream keeps the
-request (and its buffered body) alive indefinitely. The headless render path in
-OpulentAPI already caps itself at 15 s (`server/opulent.ts:106`); the plain
+request (and its buffered body) alive indefinitely. The plain
 fetch path has no equivalent. Add a per-hop deadline:
 
 ```ts
@@ -198,8 +199,7 @@ than an unhandled rejection.
 
 ### 3. Cookie-jar eviction is FIFO with no TTL
 
-**Where:** `server/klystron.ts:42–70` and the identical block in
-`server/opulent.ts:42–70`.
+**Where:** `server/klystron.ts:42–70`.
 
 `jars` is capped at `MAX_JARS = 1000`; on overflow it deletes
 `jars.keys().next().value` — the **oldest-inserted** entry, regardless of
@@ -215,8 +215,8 @@ Two small changes make it a proper LRU with TTL:
 - **TTL:** store `{ jar, lastUsed }` and sweep entries older than, say, 6 h on a
   cheap interval (or lazily during `getSessionJar`).
 
-Since both engines carry a byte-identical copy of this logic, factor it into a
-tiny `SessionJarStore` in `proxy-shared.ts` and have both import it — the
+Since Klystron owns this logic, factor it into a
+tiny `SessionJarStore` in `proxy-shared.ts` and import it — the
 comment at the top of `proxy-shared.ts` already states that shared, security-
 relevant logic should live in one place.
 
@@ -226,32 +226,14 @@ relevant logic should live in one place.
 
 ### 4. OpulentAPI parses each HTML page with jsdom twice
 
-**Where:** `server/opulent.ts:177–185`. `handle` builds a `JSDOM` to run
-`looksLikeEmptyShell`, then calls `rewrite()` (`proxy-shared.ts:191`), which
-constructs **another** `JSDOM` over the same markup. jsdom parsing is the most
-expensive step on the request path, and this doubles it for every HTML response
-that goes through OpulentAPI.
-
-Options: (a) have `rewrite()` accept an already-parsed `JSDOM`/`Document` so the
-shell check and the rewrite share one parse; or (b) do the shell heuristic on
-the raw text (a cheap `scriptCount > 0 && strippedTextLength < threshold`
-regex/length check) and let `rewrite` own the single parse.
+**Resolved.** OpulentAPI was removed from the repo, so this double-parse path
+no longer exists.
 
 ### 5. `puppeteer` is a hard production dependency
 
-**Where:** `package.json:27` (`"puppeteer": "^25.2.1"` under `dependencies`).
-
-`puppeteer`'s install step downloads a full Chromium build. Yet the render path
-is opt-in, server-side-only, and already **lazily imported**
-(`server/opulent.ts:100`, `await import("puppeteer")`). Every install — including
-anyone who only ever uses the client-side Sherpa/Scramjet engines — pays the
-Chromium download.
-
-Move it to `optionalDependencies` (the lazy import already tolerates it being
-absent — `renderWithBrowser` can catch the import failure and fall back to
-serving the un-rendered shell), or switch to `puppeteer-core` + a
-system/`PUPPETEER_SKIP_DOWNLOAD` story and document it. Either way the common
-case gets a much smaller, faster install.
+**Resolved.** OpulentAPI was the only consumer of `puppeteer`. Removing the
+engine also dropped `puppeteer` (and its Chromium download) from production
+dependencies.
 
 ---
 
@@ -304,7 +286,6 @@ Follow with rewriter tests (relative/protocol-relative/absolute URL resolution,
    regressions before touching more.
 3. **Item 1 Part 2** — resolve-and-pin DNS guard. The real SSRF fix; slightly
    more involved, so it goes in with tests and CI already in place.
-4. **Items 3, 4, 5** — robustness and footprint cleanups, independent and
-   low-risk, any order.
+4. **Item 3** — cookie-jar LRU/TTL. Independent and low-risk.
 
 Happy to implement any subset of these — just say which.
