@@ -205,7 +205,7 @@ class BardoCore {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
-        toast.error("Storage full — settings couldn't be saved.");
+        toast.error("storage full. settings didn't save.");
       }
     }
   }
@@ -219,7 +219,7 @@ class BardoCore {
       this.capabilitiesReady &&
       !this.engineSupport[value as EngineName]
     ) {
-      toast.info("That engine is unavailable on this deployment.");
+      toast.info("that engine isn't on this host.");
       return;
     }
     this.settings = { ...this.settings, [key]: value };
@@ -289,7 +289,7 @@ class BardoCore {
     const ids = sanitizeToolbarIds(entries.map((e) => e.id));
     if (!ids) return;
     this.toolbar = entries;
-    if (!saveToolbar(ids)) toast.error("Storage full — toolbar couldn't be saved.");
+    if (!saveToolbar(ids)) toast.error("storage full. toolbar didn't save.");
     this.emit();
   }
 
@@ -333,7 +333,7 @@ class BardoCore {
     if (index === -1) next.push(clean);
     else next[index] = clean;
     this.customThemes = next;
-    if (!saveCustomThemes(next)) toast.error("Storage full — theme couldn't be saved.");
+    if (!saveCustomThemes(next)) toast.error("storage full. theme didn't save.");
     this.emit();
     return true;
   }
@@ -402,7 +402,7 @@ class BardoCore {
       this.ctrlReady = false;
       this.wispUrl = null;
       window.__bardoCtrl = undefined;
-      this.setStatus("Frontend preview — browsing is unavailable on this deployment.", true);
+      this.setStatus("preview only. browsing isn't on this host.", true);
       return;
     }
 
@@ -830,7 +830,7 @@ class BardoCore {
     try {
       localStorage.setItem(TAB_GROUPS_KEY, JSON.stringify(this.savedTabGroups));
     } catch {
-      toast.error("Storage full — tab group couldn't be saved.");
+      toast.error("storage full. tab group didn't save.");
     }
   }
 
@@ -847,7 +847,7 @@ class BardoCore {
       localStorage.setItem(SESSION_KEY, JSON.stringify({ tabs: open, active, groups: this.tabGroups }));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
-        toast.error("Storage full — session couldn't be saved.");
+        toast.error("storage full. session didn't save.");
       }
     }
   }
@@ -1308,7 +1308,7 @@ class BardoCore {
   async initEngine(attempt = 1) {
     if (this.capabilitiesReady && !this.engineSupport[this.settings.engine]) {
       this.ctrlReady = false;
-      this.setStatus("This browsing engine is unavailable on this deployment.", true);
+      this.setStatus("this engine isn't on this host.", true);
       return;
     }
     if (!("serviceWorker" in navigator)) {
@@ -1343,7 +1343,7 @@ class BardoCore {
   /** User-initiated restart of the currently selected engine (not a switch). */
   async restartEngine() {
     if (this.capabilitiesReady && !this.engineSupport[this.settings.engine]) {
-      toast.info("Browsing engines are unavailable on this deployment.");
+      toast.info("browsing engines aren't on this host.");
       return;
     }
     const name = ENGINE_BY_ID[this.settings.engine]?.name ?? this.settings.engine;
@@ -1566,7 +1566,7 @@ class BardoCore {
       else localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
-        toast.error("Storage full — history couldn't be saved.");
+        toast.error("storage full. history didn't save.");
       }
     }
   }
@@ -1677,7 +1677,7 @@ class BardoCore {
       localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(this.shortcuts));
     } catch (e: any) {
       if (e.name === "QuotaExceededError" || e.code === 22) {
-        toast.error("Storage full — shortcut couldn't be saved.");
+        toast.error("storage full. shortcut didn't save.");
       }
     }
   }
