@@ -25,7 +25,7 @@ jobs:
         run: |
           install -m 700 -d ~/.ssh
           install -m 600 /dev/null ~/.ssh/bardo_deploy
-          printf '%s' "$BARDO_DEPLOY_SSH_KEY" | base64 --decode > ~/.ssh/bardo_deploy
+          printf '%s\n' "$BARDO_DEPLOY_SSH_KEY" > ~/.ssh/bardo_deploy
           printf '%s\n' '3.12.85.177 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIORQAhBaSGIV313f1KzRW5DaxSMUnD98OPJS02W6hM3Y' > ~/.ssh/known_hosts
 
       - name: Build and deploy the pushed commit
