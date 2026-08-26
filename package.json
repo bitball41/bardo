@@ -25,7 +25,6 @@
     "jsdom": "^29.1.1",
     "motion": "^12.42.0",
     "preact": "^10.27.2",
-    "puppeteer": "^25.2.1",
     "sherpa": "https://github.com/bitball41/sherpa/archive/fe81a4fa436baa349587943d7740030ead1dd6f6.tar.gz",
     "tough-cookie": "^6.0.1",
     "tsx": "^4.21.0"
