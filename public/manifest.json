@@ -1,7 +1,7 @@
 {
   "name": "Bardo",
   "short_name": "Bardo",
-  "description": "Bardo — Liminal's fast, browser-based web proxy.",
+  "description": "bardo. a web proxy by liminal.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

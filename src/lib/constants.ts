@@ -31,21 +31,15 @@ export interface EngineInfo {
 }
 
 export const ENGINES: EngineInfo[] = [
-  { id: "sherpa", name: "Sherpa", hint: "Default — faster 1.x fork, quiet page surface", kind: "client", version: "1.1.0-sherpa.2", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
-  { id: "scramjet", name: "Scramjet v1", hint: "Upstream 1.1.0 — same architecture", kind: "client", version: "1.1.0", swPath: "/sw.js", swScope: SVC_PREFIX },
-  { id: "klystron", name: "Klystron", hint: "Server-side — beta", kind: "server", version: "in-repo", swPath: "/sw-klystron.js", swScope: SVC_PREFIX_KLYSTRON },
-  { id: "opulent", name: "OpulentAPI", hint: "Server-side — JS rendering, beta", kind: "server", version: "in-repo", swPath: "/sw-opulent.js", swScope: SVC_PREFIX_OPULENT },
+  { id: "sherpa", name: "Sherpa", hint: "default. faster.", kind: "client", version: "1.1.0-sherpa.2", swPath: "/sw-sherpa.js", swScope: SVC_PREFIX_SHERPA },
+  { id: "scramjet", name: "Scramjet v1", hint: "the original", kind: "client", version: "1.1.0", swPath: "/sw.js", swScope: SVC_PREFIX },
+  { id: "klystron", name: "Klystron", hint: "beta", kind: "server", version: "in-repo", swPath: "/sw-klystron.js", swScope: SVC_PREFIX_KLYSTRON },
+  { id: "opulent", name: "OpulentAPI", hint: "beta. renders js.", kind: "server", version: "in-repo", swPath: "/sw-opulent.js", swScope: SVC_PREFIX_OPULENT },
 ];
 
 export const ENGINE_BY_ID = Object.fromEntries(ENGINES.map((e) => [e.id, e])) as Record<EngineName, EngineInfo>;
 
-export const BARDO_FAVICON =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'>` +
-      `<path d='M8 34 L8 19 Q8 6 20 6 Q32 6 32 19 L32 34' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round'/>` +
-      `<line x1='4' y1='34' x2='36' y2='34' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>`,
-  );
+export const BARDO_FAVICON = "/bardo-favicon-inverted.svg";
 
 export const SEARCH_ENGINES: Record<string, (q: string) => string> = {
   duckduckgo: (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q),

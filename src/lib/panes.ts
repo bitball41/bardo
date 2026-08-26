@@ -26,36 +26,36 @@ export interface PaneMeta {
 
 export const SIDEBAR_GROUPS: { group: string; items: PaneMeta[] }[] = [
   {
-    group: "Appearance",
+    group: "look",
     items: [
-      { id: "themes", label: "Themes", icon: "sun-medium", desc: "Pick or build a colour theme", pinnable: true },
-      { id: "appearance", label: "Personalize", icon: "square-pen", desc: "Accent colour and wallpaper", pinnable: true },
-      { id: "widgets", label: "Widgets", icon: "layout-grid", desc: "What shows on the new-tab page", pinnable: true },
-      { id: "layout", label: "Layout", icon: "layout-panel-top", desc: "Tab bar position and sidebar", pinnable: true },
-      { id: "toolbar", label: "Toolbar", icon: "grip", desc: "Arrange the toolbar buttons", pinnable: false },
+      { id: "themes", label: "themes", icon: "sun-medium", desc: "colors", pinnable: true },
+      { id: "appearance", label: "look", icon: "square-pen", desc: "accent and wallpaper", pinnable: true },
+      { id: "widgets", label: "widgets", icon: "layout-grid", desc: "new tab extras", pinnable: true },
+      { id: "layout", label: "layout", icon: "layout-panel-top", desc: "where tabs go", pinnable: true },
+      { id: "toolbar", label: "toolbar", icon: "grip", desc: "the buttons up top", pinnable: false },
     ],
   },
   {
-    group: "Browsing",
+    group: "browse",
     items: [
-      { id: "search", label: "Search", icon: "search", desc: "Default search engine", pinnable: true },
-      { id: "bookmarks", label: "Bookmarks", icon: "bookmark", desc: "Organize, pin and move saved pages", pinnable: true },
-      { id: "history", label: "History", icon: "history", desc: "Browsing history kept on this device", pinnable: true },
+      { id: "search", label: "search", icon: "search", desc: "search engine", pinnable: true },
+      { id: "bookmarks", label: "bookmarks", icon: "bookmark", desc: "saved pages", pinnable: true },
+      { id: "history", label: "history", icon: "history", desc: "where you went", pinnable: true },
     ],
   },
   {
-    group: "Privacy & Safety",
+    group: "privacy",
     items: [
-      { id: "privacy", label: "Data & Privacy", icon: "key-circle", desc: "Choose what Bardo stores on this device", pinnable: true },
-      { id: "cloaker", label: "Disguise", icon: "eye", desc: "Tab identity and about:blank launcher", pinnable: true },
-      { id: "safety", label: "Quick Exit", icon: "badge-alert", desc: "Panic key and emergency redirect", pinnable: true },
+      { id: "privacy", label: "privacy", icon: "key-circle", desc: "what stays here", pinnable: true },
+      { id: "cloaker", label: "disguise", icon: "eye", desc: "hide the tab", pinnable: true },
+      { id: "safety", label: "quick exit", icon: "badge-alert", desc: "leave in a hurry", pinnable: true },
     ],
   },
   {
-    group: "System",
+    group: "system",
     items: [
-      { id: "diagnostics", label: "Diagnostics", icon: "check", desc: "Check Bardo's health and fix issues", pinnable: false },
-      { id: "advanced", label: "Engine", icon: "file-cog", desc: "Engine, devtools and maintenance", pinnable: true },
+      { id: "diagnostics", label: "diagnostics", icon: "check", desc: "if something's off", pinnable: false },
+      { id: "advanced", label: "engine", icon: "file-cog", desc: "how pages load", pinnable: true },
     ],
   },
 ];

@@ -46,7 +46,7 @@ export function ToggleRow({
 }
 
 const CLOAKS = [
-  ["none", "None"],
+  ["none", "none"],
   ["canvas", "Canvas"],
   ["gdrive", "Google Drive"],
   ["canva", "Canva"],
@@ -152,7 +152,7 @@ export function ThemesSection({ onEditTheme, onNewTheme }: ThemesSectionProps) {
     <div className="theme-groups">
       {(customThemes.length > 0 || onNewTheme) && (
         <div className="theme-section">
-          <div className="theme-subhead">Your Themes</div>
+          <div className="theme-subhead">yours</div>
           <div className="theme-rec-grid">
             {customThemes.map((t) => {
               const active = s.theme === t.id;
@@ -187,23 +187,23 @@ export function ThemesSection({ onEditTheme, onNewTheme }: ThemesSectionProps) {
             {onNewTheme && (
               <button className="theme-btn theme-new-btn" onClick={onNewTheme}>
                 <Icon name="plus" size={13} />
-                New theme
+                new
               </button>
             )}
           </div>
         </div>
       )}
       <div className="theme-section">
-        <div className="theme-subhead">Recommended</div>
+        <div className="theme-subhead">picks</div>
         <div className="theme-rec-grid">{RECOMMENDED_THEMES.map(themeBtn)}</div>
       </div>
       {(["color", "neutral"] as const).map((grp) => (
         <div key={grp} className="theme-section">
-          <div className="theme-subhead">{grp === "neutral" ? "Neutral" : "Color"}</div>
+          <div className="theme-subhead">{grp === "neutral" ? "quiet" : "color"}</div>
           <div className="theme-columns">
             {THEME_COLUMNS.map((col) => (
               <div key={col.mode} className="theme-col">
-                <div className="theme-col-head">{col.head}</div>
+                <div className="theme-col-head">{col.head.toLowerCase()}</div>
                 {col.themes.filter((t) => t.group === grp).map(themeBtn)}
               </div>
             ))}
@@ -227,7 +227,7 @@ export function AppearanceSection() {
 
   return (
     <>
-      <div className="pane-label">Accent</div>
+      <div className="pane-label">accent</div>
       <div className="accent-row">
         <button className={cn("accent-swatch", !s.accent && "active")} title="Theme default" onClick={() => core.setSetting("accent", "")}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -249,22 +249,21 @@ export function AppearanceSection() {
         </label>
       </div>
 
-      <div className="pane-label" style={{ marginTop: 18 }}>Background</div>
-      <p className="pane-hint">Sets the backdrop behind the new-tab page.</p>
+      <div className="pane-label" style={{ marginTop: 18 }}>background</div>
       <div className="bg-grid">
         <button className={cn("bg-btn", s.wallpaperType === "none" && "active")} onClick={() => core.setSetting("wallpaperType", "none")}>
           <span className="bg-swatch bg-swatch-none" />
-          None
+          none
         </button>
         <button className={cn("bg-btn", s.wallpaperType === "gradient" && "active")} onClick={() => core.setSetting("wallpaperType", "gradient")}>
           <span className="bg-swatch bg-swatch-gradient" />
-          Accent glow
+          glow
         </button>
-        <label className={cn("bg-btn bg-upload", s.wallpaperType === "image" && "active")} title="Upload an image">
+        <label className={cn("bg-btn bg-upload", s.wallpaperType === "image" && "active")} title="upload an image">
           <span className="bg-swatch bg-swatch-image">
             <Icon name="attach-file" size={16} />
           </span>
-          Image
+          image
           <input
             type="file"
             accept="image/*"
@@ -279,10 +278,10 @@ export function AppearanceSection() {
                 setHasImg(true);
                 setWallpaperErr(false);
                 core.setSetting("wallpaperType", "image");
-                toast.success("Background image applied");
+                toast.success("wallpaper set");
               } catch {
                 setWallpaperErr(true);
-                toast.error("That image couldn’t be used — try a smaller one");
+                toast.error("that image is too big. try a smaller one");
               }
             }}
           />
@@ -300,11 +299,11 @@ export function AppearanceSection() {
             setHasImg(false);
             setWallpaperErr(false);
             if (s.wallpaperType === "image") core.setSetting("wallpaperType", "none");
-            if (!wallpaperErr) toast.info("Background image removed");
+            if (!wallpaperErr) toast.info("wallpaper gone");
           }}
         >
           <Icon name={wallpaperErr ? "badge-alert" : "delete"} size={13} />
-          {wallpaperErr ? "Could not use that image" : "Remove image"}
+          {wallpaperErr ? "couldn't use that image" : "remove"}
         </button>
       )}
     </>
@@ -315,18 +314,16 @@ export function WidgetsSection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
     <>
-      <div className="pane-label">New-tab Page</div>
-      <p className="pane-hint">Every piece of the new-tab page starts off. Turn on only what you want.</p>
-      <ToggleRow name="Clock & greeting" hint="Off by default — live clock and time-of-day greeting" k="ntClock" s={s} icon="clock" />
-      <ToggleRow name="Quick links" hint="Off by default — shortcut buttons under the search bar" k="widgetQuickLinks" s={s} />
-      <div className="pane-label" style={{ marginTop: 8 }}>Widget Panel</div>
-      <p className="pane-hint">A tidy column under the search bar. All off by default.</p>
-      <ToggleRow name="Date" hint="Day of the week and full date" k="widgetDate" s={s} icon="calendar-days" />
-      <ToggleRow name="Weather" hint="Local conditions, no permission prompt" k="widgetWeather" s={s} icon="cloud-sun" />
-      <ToggleRow name="Battery" hint="Live level and charging time when your browser allows it" k="widgetBattery" s={s} icon="battery-medium" />
-      <ToggleRow name="To-do list" hint="A quick checklist that saves on this device" k="widgetTodo" s={s} />
-      <ToggleRow name="Focus timer" hint="A 25-minute Pomodoro countdown" k="widgetPomodoro" s={s} icon="hourglass" />
-      <ToggleRow name="Quick notes" hint="A scratchpad that saves as you type" k="widgetNotes" s={s} icon="square-pen" />
+      <div className="pane-label">new tab</div>
+      <ToggleRow name="clock" k="ntClock" s={s} icon="clock" />
+      <ToggleRow name="quick links" k="widgetQuickLinks" s={s} />
+      <div className="pane-label" style={{ marginTop: 8 }}>widgets</div>
+      <ToggleRow name="date" k="widgetDate" s={s} icon="calendar-days" />
+      <ToggleRow name="weather" k="widgetWeather" s={s} icon="cloud-sun" />
+      <ToggleRow name="battery" k="widgetBattery" s={s} icon="battery-medium" />
+      <ToggleRow name="to-do" k="widgetTodo" s={s} />
+      <ToggleRow name="timer" k="widgetPomodoro" s={s} icon="hourglass" />
+      <ToggleRow name="notes" k="widgetNotes" s={s} icon="square-pen" />
     </>
   );
 }
@@ -336,13 +333,12 @@ export function LayoutSection() {
   const vertical = s.tabPosition === "left" || s.tabPosition === "right";
   return (
     <>
-      <div className="pane-label">Tab Bar Position</div>
-      <p className="pane-hint">Choose where the tab bar appears. Left and Right show a vertical sidebar; Bottom is the default on phones.</p>
+      <div className="pane-label">tabs</div>
       <div className="tab-pos-grid">
         {(["top", "bottom", "left", "right"] as TabPosition[]).map((pos) => (
           <button key={pos} className={cn("tab-pos-btn", s.tabPosition === pos && "active")} onClick={() => core.setSetting("tabPosition", pos)}>
             {TAB_POS_SVG[pos]}
-            {pos[0].toUpperCase() + pos.slice(1)}
+            {pos}
           </button>
         ))}
       </div>
@@ -350,8 +346,7 @@ export function LayoutSection() {
         <div style={{ marginTop: 14 }}>
           <label className="setting-row toggle-row">
             <div className="setting-info">
-              <span className="setting-name">Hide sidebar</span>
-              <span className="setting-hint">Collapses the vertical tab bar</span>
+              <span className="setting-name">hide sidebar</span>
             </div>
             <Toggle checked={s.sidebarCollapsed} onChange={(v) => core.setSetting("sidebarCollapsed", v)} />
           </label>
@@ -365,9 +360,9 @@ export function SearchSection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
     <>
-      <div className="pane-label">Default Search Engine</div>
+      <div className="pane-label">search</div>
       <div className="setting-row">
-        <span className="setting-name">Engine</span>
+        <span className="setting-name">engine</span>
         <select className="setting-select" value={s.searchEngine} onChange={(e) => core.setSetting("searchEngine", e.currentTarget.value)}>
           <option value="duckduckgo">DuckDuckGo</option>
           <option value="google">Google</option>
@@ -392,20 +387,20 @@ export function BookmarksSection() {
     link.download = "bardo-bookmarks.json";
     link.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${s.bookmarks.length} bookmark${s.bookmarks.length === 1 ? "" : "s"}`);
+    toast.success(`exported ${s.bookmarks.length}`);
   };
 
   return (
     <>
-      <div className="pane-label">Bookmarks Bar</div>
+      <div className="pane-label">bar</div>
       <label className="setting-row toggle-row">
-        <span className="setting-name">Show bookmarks bar</span>
+        <span className="setting-name">show bookmarks bar</span>
         <Toggle checked={s.bookmarksVisible} onChange={(v) => core.setSetting("bookmarksVisible", v)} />
       </label>
       <div className="bm-settings-actions">
         <label className="action-btn bm-import-btn">
           <Icon name="attach-file" size={13} />
-          Import JSON
+          import
           <input
             type="file"
             accept="application/json,.json"
@@ -415,22 +410,22 @@ export function BookmarksSection() {
               if (!file) return;
               try {
                 const count = core.importBookmarks(JSON.parse(await file.text()));
-                toast.success(count ? `Imported ${count} bookmark${count === 1 ? "" : "s"}` : "No new bookmarks to import");
+                toast.success(count ? `imported ${count}` : "nothing new");
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : "That bookmarks file is invalid.");
+                toast.error(error instanceof Error ? error.message : "that file is junk.");
               }
             }}
           />
         </label>
         <button className="action-btn" onClick={exportBookmarks} disabled={s.bookmarks.length === 0}>
           <Icon name="copy" size={13} />
-          Export JSON
+          export
         </button>
       </div>
 
-      <div className="pane-label" style={{ marginTop: 16 }}>Saved Bookmarks</div>
+      <div className="pane-label" style={{ marginTop: 16 }}>saved</div>
       {s.bookmarks.length === 0 ? (
-        <div className="settings-empty"><Icon name="bookmark" size={18} /><span>No bookmarks yet</span><small>Save a page from the toolbar or bookmarks bar.</small></div>
+        <div className="settings-empty"><Icon name="bookmark" size={18} /><span>none yet</span><small>save a page from the toolbar.</small></div>
       ) : (
         <div className="bm-settings-list">
           {s.bookmarks.map((bookmark, index) => {
@@ -450,7 +445,7 @@ export function BookmarksSection() {
                     className="setting-input bm-folder-input"
                     list="bardo-bookmark-folders"
                     value={bookmark.folder || ""}
-                    placeholder="No folder"
+                    placeholder="no folder"
                     aria-label={`Folder for ${bookmark.title}`}
                     onChange={(event) => core.updateBookmark(bookmark.id, { folder: event.currentTarget.value })}
                   />
@@ -474,9 +469,9 @@ export function BookmarksSection() {
           {folders.map((folder) => (
             <button key={folder} className="action-btn" onClick={() => {
               const count = core.openBookmarkFolder(folder);
-              toast.success(`Opened ${count} tab${count === 1 ? "" : "s"} from ${folder}`);
+              toast.success(`opened ${count} from ${folder}`);
             }}>
-              <Icon name="layout-grid" size={13} /> Open {folder} in tabs
+              <Icon name="layout-grid" size={13} /> open {folder}
             </button>
           ))}
         </div>
@@ -489,10 +484,10 @@ export function HistorySection({ onOpenHistory }: { onOpenHistory: () => void })
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
     <>
-      <div className="pane-label">Browsing History</div>
-      <ToggleRow name="Save history" hint="Stored only on this device — never uploaded" k="historyEnabled" s={s} />
+      <div className="pane-label">history</div>
+      <ToggleRow name="save history" k="historyEnabled" s={s} />
       <button className="action-btn" onClick={onOpenHistory}>
-        Open History Page
+        open history
       </button>
     </>
   );
@@ -502,39 +497,15 @@ export function PrivacySection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   const historyCount = useBardoSelector((snapshot) => snapshot.history.length);
   return (
-    <div className="settings-stack">
-      <div className="privacy-summary">
-        <Icon name="key-circle" size={18} />
-        <div><strong>Private by default</strong><span>Your history, tabs, bookmarks, and preferences stay in this browser.</span></div>
+    <>
+      <ToggleRow name="save history" hint={s.sessionOnly ? "paused" : `${historyCount} saved`} k="historyEnabled" s={s} />
+      <ToggleRow name="restore tabs" hint={s.sessionOnly ? "paused" : "open last session"} k="restoreTabs" s={s} />
+      <ToggleRow name="session only" hint="forget after close" k="sessionOnly" s={s} />
+      <div className="privacy-actions" style={{ marginTop: 16 }}>
+        <ConfirmButton className="action-btn" label="clear history" confirmLabel="click again to clear" icon="delete" onConfirm={() => { core.clearBrowsingData(); toast.success("cleared"); }} />
+        <ConfirmButton className="action-btn danger" label="reset everything" confirmLabel="click again to reset" icon="badge-alert" onConfirm={() => { toast.info("resetting…"); core.clearAllData(); }} />
       </div>
-
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">What Bardo remembers</div>
-            <p className="settings-card-copy">Control the browsing activity saved between visits.</p>
-          </div>
-        </div>
-        <div className="settings-card-rows">
-          <ToggleRow name="Save history" hint={s.sessionOnly ? "Paused while session-only mode is on" : `${historyCount} saved ${historyCount === 1 ? "visit" : "visits"}`} k="historyEnabled" s={s} />
-          <ToggleRow name="Restore open tabs" hint={s.sessionOnly ? "Paused while session-only mode is on" : "Reopen this session the next time Bardo starts"} k="restoreTabs" s={s} />
-          <ToggleRow name="Session-only mode" hint="Do not save new history or open tabs after this session" k="sessionOnly" s={s} />
-        </div>
-      </section>
-
-      <section className="settings-card settings-card-danger">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">Remove saved data</div>
-            <p className="settings-card-copy">Clear activity only, or reset every local Bardo preference.</p>
-          </div>
-        </div>
-        <div className="privacy-actions">
-          <ConfirmButton className="action-btn" label="Clear browsing data" confirmLabel="Click again to clear history, tabs & notes" icon="delete" onConfirm={() => { core.clearBrowsingData(); toast.success("Local browsing data cleared"); }} />
-          <ConfirmButton className="action-btn danger" label="Reset all Bardo data" confirmLabel="Click again to reset Bardo" icon="badge-alert" onConfirm={() => { toast.info("Clearing Bardo data…"); core.clearAllData(); }} />
-        </div>
-      </section>
-    </div>
+    </>
   );
 }
 
@@ -542,184 +513,88 @@ export function CloakerSection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   const abBlocked = useBardoSelector((snapshot) => snapshot.abBlocked);
   return (
-    <div className="settings-stack">
-      <div className="privacy-summary">
-        <Icon name="eye" size={18} />
-        <div><strong>Control how Bardo appears</strong><span>Change its tab identity or open it inside a neutral about:blank tab.</span></div>
+    <>
+      <div className="pane-label">tab looks like</div>
+      <div className="cloak-grid">
+        {CLOAKS.map(([id, label]) => (
+          <button key={id} className={cn("cloak-btn", s.tabCloak === id && "active")} onClick={() => core.setSetting("tabCloak", id)}>
+            {label}
+          </button>
+        ))}
       </div>
-
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">Tab identity</div>
-            <p className="settings-card-copy">Replace Bardo's visible tab title and favicon with a familiar preset.</p>
-          </div>
-        </div>
-        <div className="cloak-grid">
-          {CLOAKS.map(([id, label]) => (
-            <button key={id} className={cn("cloak-btn", s.tabCloak === id && "active")} onClick={() => core.setSetting("tabCloak", id)}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">About:blank window</div>
-            <p className="settings-card-copy">Run Bardo in a separate tab whose address bar only shows about:blank.</p>
-          </div>
-        </div>
-        <div className="settings-card-rows">
-          <ToggleRow name="Launch automatically" hint="Open Bardo this way when popups are allowed" k="aboutBlankMode" s={s} />
-          <ToggleRow name="Use tab identity" hint="Apply the preset above unless custom values are entered" k="aboutBlankRememberCloak" s={s} />
-        </div>
-        <div className="settings-fields">
-          <label className="setting-row privacy-field">
-            <span className="setting-name">Custom title</span>
-            <input className="setting-input" value={s.aboutBlankTitle} placeholder="Use tab identity" maxLength={100} onInput={(event) => core.setSetting("aboutBlankTitle", event.currentTarget.value)} />
-          </label>
-          <label className="setting-row privacy-field">
-            <span className="setting-name">Custom favicon</span>
-            <input className="setting-input" type="url" value={s.aboutBlankFavicon} placeholder="https://example.com/icon.png" onInput={(event) => core.setSetting("aboutBlankFavicon", event.currentTarget.value)} />
-          </label>
-        </div>
-        <div className="privacy-actions">
-          <button className="action-btn" onClick={() => core.launchAboutBlank("session")}><Icon name="layout-grid" size={13} />Launch session</button>
-          <button className="action-btn" onClick={() => core.launchAboutBlank("current")}><Icon name="eye" size={13} />Launch current page</button>
-        </div>
-        {abBlocked && <p className="inline-notice warning"><Icon name="badge-alert" size={13} />Popup blocked. Allow popups for this site and try again.</p>}
-        <p className="settings-card-footnote">You can also add this launcher to the toolbar for one-click access.</p>
-      </section>
-    </div>
+      <div className="pane-label" style={{ marginTop: 16 }}>about:blank</div>
+      <ToggleRow name="open on launch" k="aboutBlankMode" s={s} />
+      <ToggleRow name="use tab name" k="aboutBlankRememberCloak" s={s} />
+      <label className="setting-row privacy-field">
+        <span className="setting-name">title</span>
+        <input className="setting-input" value={s.aboutBlankTitle} placeholder="same as above" maxLength={100} onInput={(event) => core.setSetting("aboutBlankTitle", event.currentTarget.value)} />
+      </label>
+      <label className="setting-row privacy-field">
+        <span className="setting-name">icon</span>
+        <input className="setting-input" type="url" value={s.aboutBlankFavicon} placeholder="https://…" onInput={(event) => core.setSetting("aboutBlankFavicon", event.currentTarget.value)} />
+      </label>
+      <div className="privacy-actions">
+        <button className="action-btn" onClick={() => core.launchAboutBlank("session")}><Icon name="layout-grid" size={13} />open session</button>
+        <button className="action-btn" onClick={() => core.launchAboutBlank("current")}><Icon name="eye" size={13} />open this page</button>
+      </div>
+      {abBlocked && <p className="inline-notice warning"><Icon name="badge-alert" size={13} />popup blocked. allow popups and try again.</p>}
+    </>
   );
 }
 
 export function SafetySection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   return (
-    <div className="settings-stack">
-      <div className="privacy-summary safety-summary">
-        <Icon name="badge-alert" size={18} />
-        <div><strong>Leave Bardo in one move</strong><span>Set a special key that redirects immediately and removes saved activity.</span></div>
-      </div>
-
-      <section className="settings-card safety-card">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">Panic key</div>
-            <p className="settings-card-copy">Use a function, modifier, navigation, media, or system key so normal typing never triggers it.</p>
-          </div>
+    <>
+      <label className="setting-row">
+        <span className="setting-name">key</span>
+        <div className="panic-key-controls">
+          <button
+            type="button"
+            className="setting-input panic-key-capture"
+            aria-label="set exit key"
+            onKeyDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const key = event.key;
+              if (key.length <= 1 || ["Unidentified", "Process", "Dead"].includes(key)) {
+                toast.info("use a special key, not a letter");
+                return;
+              }
+              core.setSetting("panicKey", key);
+              toast.success(`${key} is set`);
+            }}
+          >
+            {s.panicKey || "press a key"}
+          </button>
+          {s.panicKey && <button type="button" className="mini-action panic-key-clear" onClick={() => core.setSetting("panicKey", "")}>clear</button>}
         </div>
-        <div className="setting-row panic-key-row">
-          <div className="setting-info">
-            <span className="setting-name">Trigger key</span>
-            <span className="setting-hint">Letters, numbers, punctuation, and Space are ignored</span>
-          </div>
-          <div className="panic-key-controls">
-            <button
-              type="button"
-              className="setting-input panic-key-capture"
-              aria-label="Capture panic key"
-              onKeyDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                const key = event.key;
-                if (key.length <= 1 || ["Unidentified", "Process", "Dead"].includes(key)) {
-                  toast.info("Use a non-character key for the panic shortcut.");
-                  return;
-                }
-                core.setSetting("panicKey", key);
-                toast.success(`${key} is now the panic key`);
-              }}
-            >
-              {s.panicKey || "Press a special key"}
-            </button>
-            {s.panicKey && <button type="button" className="mini-action panic-key-clear" onClick={() => core.setSetting("panicKey", "")}>Clear</button>}
-          </div>
-        </div>
-        <label className="setting-row panic-redirect-row">
-          <span className="setting-name">Redirect destination</span>
-          <input
-            type="url"
-            className="setting-input"
-            placeholder="https://classroom.google.com"
-            value={s.panicUrl}
-            onInput={(e) => core.setSetting("panicUrl", e.currentTarget.value)}
-          />
-        </label>
-        <div className="safety-result">
-          <Icon name="delete" size={14} />
-          <div><strong>What happens</strong><span>Bardo redirects, then clears saved tabs, history, notes, and to-dos.</span></div>
-        </div>
-      </section>
-    </div>
+      </label>
+      <label className="setting-row" style={{ marginTop: 12 }}>
+        <span className="setting-name">go to</span>
+        <input
+          type="url"
+          className="setting-input"
+          placeholder="https://classroom.google.com"
+          value={s.panicUrl}
+          onInput={(e) => core.setSetting("panicUrl", e.currentTarget.value)}
+        />
+      </label>
+      <p className="pane-hint" style={{ marginTop: 12 }}>press it and you're out. history gets wiped.</p>
+    </>
   );
 }
 
 export function DiagnosticsSection({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
   const d = useDiagnostics();
-  const summary = d.overall === "ok" ? "Healthy" : d.overall === "warn" ? "Minor Issues" : "Needs Attention";
-  const lead = d.overall === "ok" ? "Everything Bardo needs is running normally." : d.issues[0]?.text ?? "Something needs your attention.";
+  const summary = d.overall === "ok" ? "all good" : d.overall === "warn" ? "a little off" : "needs a look";
   return (
-    <div className="settings-stack">
-      <div className={cn("privacy-summary", d.overall !== "ok" && "safety-summary")}>
-        <Icon name={d.overall === "ok" ? "check" : "badge-alert"} size={18} />
-        <div>
-          <strong>{summary}</strong>
-          <span>{lead}</span>
-        </div>
-      </div>
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div>
-            <div className="settings-card-title">Full diagnostics</div>
-            <p className="settings-card-copy">Connection, proxy engine, service worker, storage, performance and a recent activity log.</p>
-          </div>
-        </div>
-        <button className="action-btn" onClick={onOpenDiagnostics}>
-          <Icon name="arrow-right" size={13} /> Open Diagnostics
-        </button>
-      </section>
-    </div>
-  );
-}
-
-function EngineCompare() {
-  return (
-    <section className="engine-compare" aria-labelledby="engine-compare-title">
-      <div className="engine-compare-head">
-        <strong id="engine-compare-title">Sherpa vs Scramjet v1</strong>
-        <span>Same 1.x architecture. Sherpa is the fork; Scramjet v1 is the frozen upstream 1.1.0 package.</span>
-      </div>
-      <div className="engine-compare-grid">
-        <article>
-          <h4>Similar</h4>
-          <p>
-            Both are client-side service-worker proxies. A worker intercepts each request, fetches the real site over Wisp, then rewrites HTML, CSS, and JavaScript so <code>location</code>, <code>fetch</code>, cookies, and frames stay inside the proxy. JavaScript goes through a WASM rewriter. The page boots three scripts, then reads the original site URLs back out of the rewritten ones.
-          </p>
-        </article>
-        <article>
-          <h4>Different</h4>
-          <p>
-            Sherpa keeps the 1.x design and adds compatibility work upstream never shipped: spec srcset parsing, charset sniffing, RFC 6265 cookies, a real CSS <code>url()</code> scanner, selector rewriting, nested service-worker scopes, streamed documents, and a rewritten-response cache. In Bardo, rewritten pages use the same public names and URL prefix as Scramjet, so a filter looking at the page does not see a distinct “Sherpa” or “Bardo” product. Host APIs and this settings pane stay labeled Sherpa.
-          </p>
-        </article>
-        <article>
-          <h4>Which is faster</h4>
-          <p>
-            Sherpa. The rewriters measure about 1.3–1.8× (up to 5.3× on script-heavy HTML). Proxied page loads are about 1.12–1.26×. Repeat visits with the response cache are about 1.5–1.7× on a shaped link. Document time-to-first-byte stays flat as the page grows because the first kilobyte flushes before the rest of the download finishes. Wire size is about even with Scramjet 1.1.0.
-          </p>
-        </article>
-        <article>
-          <h4>How rewriting works</h4>
-          <p>
-            The service worker matches the engine prefix, decodes the real URL, and fetches it. HTML is parsed; every URL, inline style, and script is rewritten. Scripts wrap <code>location</code>, <code>eval</code>, and friends through the engine globals. CSS <code>url()</code>s and <code>srcset</code> candidates are rewritten in place. The client then unrewrites what the page reads — <code>el.href</code>, <code>document.cookie</code>, selectors — so the site sees itself, not the proxy.
-          </p>
-        </article>
-      </div>
-    </section>
+    <>
+      <p className="pane-hint">{summary}</p>
+      <button className="action-btn" onClick={onOpenDiagnostics}>
+        <Icon name="arrow-right" size={13} /> open diagnostics
+      </button>
+    </>
   );
 }
 
@@ -730,11 +605,11 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
   const deploymentMode = useBardoSelector((snapshot) => snapshot.deploymentMode);
   return (
     <>
-      <div className="pane-label">Engine</div>
-      <p className="pane-hint">Changes take effect after a reload.</p>
+      <div className="pane-label">engine</div>
+      <p className="pane-hint">needs a reload</p>
       {capabilitiesReady && deploymentMode === "frontend-preview" && (
         <p className="inline-notice warning">
-          Frontend preview only — this deployment does not include proxy runtimes or a browsing server.
+          preview only. browsing isn't on this host.
         </p>
       )}
       <div className="engine-grid">
@@ -745,72 +620,63 @@ export function AdvancedSection({ compact }: { compact?: boolean }) {
               key={id}
               className={cn("engine-btn", (s.engine || "sherpa") === id && "active")}
               disabled={!available}
-              title={available ? undefined : "Unavailable on this deployment"}
+              title={available ? undefined : "not on this host"}
               onClick={() => core.setSetting("engine", id)}
             >
               <span className="engine-name">{name}</span>
-              <span className="engine-hint">{available ? hint : "Unavailable on this deployment"}</span>
+              <span className="engine-hint">{available ? hint : "not on this host"}</span>
             </button>
           );
         })}
       </div>
       {!compact && (
-        <>
-          <p className="pane-hint" style={{ marginTop: 8 }}>
-            Sherpa is available under the AGPL-3.0 license.{" "}
-            <a href="https://github.com/bitball41/sherpa" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
-              View Sherpa source code
-            </a>
-            .
-          </p>
-          <EngineCompare />
-        </>
+        <p className="pane-hint" style={{ marginTop: 8 }}>
+          sherpa is agpl.{" "}
+          <a href="https://github.com/bitball41/sherpa" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+            source
+          </a>
+        </p>
       )}
-      <div className="pane-label" style={{ marginTop: 16 }}>Developer Tools</div>
-      <ToggleRow name="Enable Eruda DevTools" hint="Shows a devtools button in the toolbar to inspect and debug the page" k="erudaEnabled" s={s} />
-      <div className="pane-label" style={{ marginTop: 8 }}>Maintenance</div>
+      <div className="pane-label" style={{ marginTop: 16 }}>devtools</div>
+      <ToggleRow name="eruda" hint="inspect the page" k="erudaEnabled" s={s} />
+      <div className="pane-label" style={{ marginTop: 8 }}>fix it</div>
       <ConfirmButton
         className="action-btn"
-        label="Force reload"
-        confirmLabel="Click again to clear cache & reload"
+        label="force reload"
+        confirmLabel="click again to reload"
         icon="refresh-ccw"
         onConfirm={() => {
-          toast.info("Clearing cache and reloading…");
+          toast.info("reloading…");
           core.forceReload();
         }}
       />
       {!compact && (
         <>
-          <p className="pane-hint" style={{ marginTop: 8 }}>
-            Clears the service worker and cache, then reloads. Use if the browser stops working.
-          </p>
           <ConfirmButton
             className="action-btn"
-            label="Restore default settings"
-            confirmLabel="Click again to reset everything"
+            label="reset settings"
+            confirmLabel="click again to reset"
             icon="delete"
             onConfirm={() => {
               core.resetSettings();
-              toast.success("Settings restored to defaults");
+              toast.success("back to defaults");
             }}
           />
           <p className="pane-hint" style={{ marginTop: 8 }}>
-            Resets every preference to its default. Your saved bookmarks are kept.
+            bookmarks stay.
           </p>
-          <div className="pane-label" style={{ marginTop: 18 }}>Keyboard shortcuts</div>
+          <div className="pane-label" style={{ marginTop: 18 }}>keys</div>
           <div className="shortcut-list">
-            <div className="shortcut-row"><span>Switch to tab 1–9</span><div className="shortcut-keys"><kbd>Alt</kbd> + <kbd>1</kbd>–<kbd>9</kbd></div></div>
-            <div className="shortcut-row"><span>Back / forward</span><div className="shortcut-keys"><kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd></div></div>
-            <div className="shortcut-row"><span>New tab</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>T</kbd></div></div>
-            <div className="shortcut-row"><span>Open history</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>H</kbd></div></div>
-            <div className="shortcut-row"><span>Close tab</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>W</kbd></div></div>
-            <div className="shortcut-row"><span>Focus address bar</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>L</kbd></div></div>
-            <div className="shortcut-row"><span>Reload page</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
+            <div className="shortcut-row"><span>tab 1-9</span><div className="shortcut-keys"><kbd>Alt</kbd> + <kbd>1</kbd>-<kbd>9</kbd></div></div>
+            <div className="shortcut-row"><span>back / forward</span><div className="shortcut-keys"><kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd></div></div>
+            <div className="shortcut-row"><span>new tab</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>T</kbd></div></div>
+            <div className="shortcut-row"><span>history</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>H</kbd></div></div>
+            <div className="shortcut-row"><span>close tab</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>W</kbd></div></div>
+            <div className="shortcut-row"><span>address bar</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>L</kbd></div></div>
+            <div className="shortcut-row"><span>reload</span><div className="shortcut-keys"><kbd>Ctrl</kbd> + <kbd>R</kbd></div></div>
           </div>
           <p className="pane-hint" style={{ marginTop: 8 }}>
-            The <kbd className="kbd-inline">Alt</kbd> (or <kbd className="kbd-inline">⌥</kbd>) shortcuts work everywhere. The{" "}
-            <kbd className="kbd-inline">Ctrl</kbd> (or <kbd className="kbd-inline">⌘</kbd>) ones are reserved by most browsers in a
-            normal tab, so they only take effect when Bardo runs standalone (e.g. the about:blank launcher under Disguise).
+            ctrl shortcuts only work in about:blank.
           </p>
         </>
       )}

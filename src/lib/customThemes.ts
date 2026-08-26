@@ -18,24 +18,24 @@ export const MAX_CUSTOM_THEMES = 20;
 export const THEME_NAME_MAX = 40;
 
 export const DENSITIES: { id: Density; label: string }[] = [
-  { id: "compact", label: "Compact" },
-  { id: "comfortable", label: "Comfortable" },
-  { id: "spacious", label: "Spacious" },
+  { id: "compact", label: "compact" },
+  { id: "comfortable", label: "normal" },
+  { id: "spacious", label: "roomy" },
 ];
 
 export const ANIMATION_LEVELS: { id: AnimationLevel; label: string; hint: string }[] = [
-  { id: "full", label: "Full", hint: "All animations and icon motion" },
-  { id: "reduced", label: "Reduced", hint: "Keeps quick transitions, stops decorative motion" },
-  { id: "none", label: "None", hint: "No transitions or animations" },
+  { id: "full", label: "full", hint: "all the motion" },
+  { id: "reduced", label: "less", hint: "keeps the useful bits" },
+  { id: "none", label: "off", hint: "no motion" },
 ];
 
 export const FONT_OPTIONS: { id: string; label: string; stack: string }[] = [
-  { id: "system", label: "System", stack: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
-  { id: "humanist", label: "Humanist", stack: '"Segoe UI", "Trebuchet MS", Verdana, sans-serif' },
-  { id: "grotesque", label: "Grotesque", stack: 'Arial, "Helvetica Neue", Helvetica, sans-serif' },
-  { id: "serif", label: "Serif", stack: 'Georgia, "Times New Roman", serif' },
-  { id: "mono", label: "Monospace", stack: 'ui-monospace, Consolas, "Cascadia Mono", monospace' },
-  { id: "display", label: "Display", stack: '"Unbounded", system-ui, sans-serif' },
+  { id: "system", label: "system", stack: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
+  { id: "humanist", label: "humanist", stack: '"Segoe UI", "Trebuchet MS", Verdana, sans-serif' },
+  { id: "grotesque", label: "grotesque", stack: 'Arial, "Helvetica Neue", Helvetica, sans-serif' },
+  { id: "serif", label: "serif", stack: 'Georgia, "Times New Roman", serif' },
+  { id: "mono", label: "mono", stack: 'ui-monospace, Consolas, "Cascadia Mono", monospace' },
+  { id: "display", label: "display", stack: '"Unbounded", system-ui, sans-serif' },
 ];
 
 const FONT_BY_ID = new Map(FONT_OPTIONS.map((f) => [f.id, f]));
@@ -55,15 +55,15 @@ const COLOR_KEYS: (keyof CustomThemeColors)[] = [
 ];
 
 export const COLOR_FIELDS: { key: keyof CustomThemeColors; label: string; hint: string }[] = [
-  { key: "bg", label: "Background", hint: "Page and new-tab backdrop" },
-  { key: "surface", label: "Surface", hint: "Toolbar, panels and dialogs" },
-  { key: "border", label: "Borders", hint: "Dividers and outlines" },
-  { key: "text", label: "Primary text", hint: "Main labels and content" },
-  { key: "muted", label: "Muted text", hint: "Hints and secondary labels" },
-  { key: "hover", label: "Hover surface", hint: "Buttons under the pointer" },
-  { key: "active", label: "Active surface", hint: "Pressed and selected controls" },
-  { key: "accent", label: "Accent", hint: "Highlights, links and toggles" },
-  { key: "accentContrast", label: "Accent contrast", hint: "Text on accent-coloured fills" },
+  { key: "bg", label: "background", hint: "the page" },
+  { key: "surface", label: "surface", hint: "bars and menus" },
+  { key: "border", label: "borders", hint: "lines" },
+  { key: "text", label: "text", hint: "main words" },
+  { key: "muted", label: "muted", hint: "the quiet words" },
+  { key: "hover", label: "hover", hint: "when you point" },
+  { key: "active", label: "active", hint: "when it's on" },
+  { key: "accent", label: "accent", hint: "the pop of color" },
+  { key: "accentContrast", label: "accent text", hint: "text on accent" },
 ];
 
 function clamp(value: unknown, min: number, max: number, fallback: number): number {

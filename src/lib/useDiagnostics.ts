@@ -263,7 +263,7 @@ function computeIssues(d: {
     issues.push({ level: "warn", text: `${d.engine.name} is still starting up.` });
   }
   if (d.sw.supported && !d.sw.matched && d.ctrlReady) {
-    issues.push({ level: "warn", text: "Bardo's service worker isn't registered — some pages may fail to load until you reload." });
+    issues.push({ level: "warn", text: "the service worker isn't registered. reload if pages fail." });
   }
   if (d.sw.updateAvailable) {
     issues.push({ level: "warn", text: "An update to Bardo is ready. Refresh to apply it." });
