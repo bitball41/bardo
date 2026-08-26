@@ -137,7 +137,7 @@ export function GooeyInput({
           <div
             className={cn(
               "relative flex h-10 w-full cursor-text items-center justify-center gap-2 rounded-full px-4 text-sm font-medium outline-none",
-              "bg-foreground text-background shadow-sm ring-1 ring-border/60 focus-within:ring-2 focus-within:ring-ring",
+              "bg-foreground text-background shadow-sm ring-1 ring-border/60",
               disabled && "pointer-events-none opacity-50",
               classNames?.trigger,
             )}
@@ -146,7 +146,7 @@ export function GooeyInput({
             {!expanded && (
               <button
                 type="button"
-                className="absolute inset-0 z-10 cursor-text rounded-full"
+                className="absolute inset-0 z-10 cursor-text rounded-full outline-none"
                 aria-label={placeholder}
                 onClick={(event) => {
                   event.stopPropagation();

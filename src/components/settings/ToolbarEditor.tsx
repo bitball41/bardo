@@ -66,7 +66,7 @@ function ToolbarPreview({ entries }: { entries: ToolbarEntry[] }) {
 
   return (
     <div className="tbe-preview-block">
-      <div className="tbe-preview-label">Live preview</div>
+      <div className="tbe-preview-label">preview</div>
       <div className="tbe-preview" role="toolbar" aria-label="Rearrange toolbar preview">
         {entries.map((entry, index) => {
           const def = TOOLBAR_ITEM_BY_ID.get(entry.id);
@@ -138,13 +138,13 @@ function ToolbarPreview({ entries }: { entries: ToolbarEntry[] }) {
               }}
             >
               <ItemGlyph def={def} size={13} />
-              {entry.id === "address" && <span>Search or enter address</span>}
+              {entry.id === "address" && <span>search or enter address</span>}
             </button>
           );
         })}
       </div>
       <p className="tbe-preview-help">
-        Drag items to rearrange them. You can also focus an item and use Left, Right, Home, or End.
+        drag to move
       </p>
     </div>
   );
@@ -169,7 +169,7 @@ export function ToolbarEditor() {
 
     const next = toolbar.filter((entry) => entry.id !== def.id);
     if (next.length === 0) {
-      toast.error("Keep at least one item in the toolbar");
+      toast.error("keep at least one button");
       return;
     }
     core.setToolbar(next);
@@ -213,12 +213,12 @@ export function ToolbarEditor() {
 
       <ConfirmButton
         className="action-btn tbe-reset"
-        label="Reset to default"
-        confirmLabel="Click again to reset the toolbar"
+        label="reset"
+        confirmLabel="click again to reset"
         icon="refresh-ccw"
         onConfirm={() => {
           core.resetToolbar();
-          toast.success("Toolbar restored to its default layout");
+          toast.success("toolbar reset");
         }}
       />
     </div>

@@ -43,7 +43,7 @@ function ColorField({
   const shown = focused ? text : value;
   return (
     <div className="te-color-field">
-      <label className="te-color-swatch" title={`${label} — pick a colour`}>
+      <label className="te-color-swatch" title={`pick ${label}`}>
         <input
           type="color"
           value={value}
@@ -170,16 +170,16 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
     link.download = `${draft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "bardo-theme"}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("Theme exported");
+    toast.success("exported");
   };
 
   const save = () => {
     if (core.upsertCustomTheme(draft)) {
       core.setSetting("theme", draft.id);
-      toast.success(`Theme “${draft.name}” saved and applied`);
+      toast.success(`saved “${draft.name}”`);
       onClose();
     } else {
-      toast.error("That theme couldn't be saved.");
+      toast.error("couldn't save that theme.");
     }
   };
 
@@ -188,10 +188,10 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
       <div className="te-toolbar">
         <button className="action-btn te-back-btn" onClick={onClose}>
           <Icon name="arrow-left" size={13} />
-          Back to themes
+          back
         </button>
         <label className="action-btn te-file-btn">
-          <Icon name="attach-file" size={13} />Import
+          <Icon name="attach-file" size={13} />import
           <input type="file" accept="application/json,.json" onChange={async (event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
@@ -201,27 +201,27 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
               const imported = sanitizeCustomTheme(parsed?.theme ?? parsed);
               if (!imported) throw new Error("Invalid theme file");
               setDraft(imported);
-              toast.success(`Imported “${imported.name}”`);
+              toast.success(`got “${imported.name}”`);
             } catch {
-              toast.error("That theme file is invalid or incomplete.");
+              toast.error("that file's not a theme.");
             }
           }} />
         </label>
-        <button className="action-btn" onClick={exportTheme}><Icon name="copy" size={13} />Export</button>
+        <button className="action-btn" onClick={exportTheme}><Icon name="copy" size={13} />export</button>
       </div>
 
-      <div className="pane-label">Preview</div>
+      <div className="pane-label">preview</div>
       <ThemePreviewCard draft={draft} />
       <label className="setting-row toggle-row te-live-toggle">
-        <div className="setting-info"><span className="setting-name">Live preview</span><span className="setting-hint">Try changes across Bardo before saving</span></div>
+        <div className="setting-info"><span className="setting-name">live preview</span></div>
         <span className="toggle-wrap"><input type="checkbox" className="toggle-input" checked={livePreview} onChange={(event) => setLivePreview(event.currentTarget.checked)} /><span className="toggle-track" /></span>
       </label>
       <label className="setting-row toggle-row">
-        <div className="setting-info"><span className="setting-name">More contrast</span><span className="setting-hint">Strengthen borders and muted text throughout the interface</span></div>
+        <div className="setting-info"><span className="setting-name">more contrast</span></div>
         <span className="toggle-wrap"><input type="checkbox" className="toggle-input" checked={settings.moreContrast} onChange={(event) => core.setSetting("moreContrast", event.currentTarget.checked)} /><span className="toggle-track" /></span>
       </label>
 
-      <div className="pane-label" style={{ marginTop: 16 }}>Name</div>
+      <div className="pane-label" style={{ marginTop: 16 }}>name</div>
       <input
         className="setting-input"
         value={draft.name}
@@ -230,9 +230,9 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         onInput={(e) => patch({ name: e.currentTarget.value })}
       />
 
-      <div className="pane-label" style={{ marginTop: 16 }}>Start From a Built-in Theme</div>
+      <div className="pane-label" style={{ marginTop: 16 }}>copy a theme</div>
       <div className="setting-row">
-        <span className="setting-name">Duplicate</span>
+        <span className="setting-name">start from</span>
         <select
           className="setting-select"
           value={draft.base}
@@ -252,10 +252,10 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         </select>
       </div>
       <p className="pane-hint" style={{ marginTop: 6 }}>
-        Picking a theme replaces the colours below with that theme's palette.
+        picking one replaces the colors below.
       </p>
 
-      <div className="pane-label" style={{ marginTop: 10 }}>Colours</div>
+      <div className="pane-label" style={{ marginTop: 10 }}>colors</div>
       <div className="te-color-grid">
         {COLOR_FIELDS.map((f) => (
           <ColorField
@@ -281,10 +281,10 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         </div>
       )}
 
-      <div className="pane-label" style={{ marginTop: 16 }}>Shape & Type</div>
+      <div className="pane-label" style={{ marginTop: 16 }}>shape</div>
       <div className="setting-row" style={{ marginBottom: 10 }}>
         <div className="setting-info">
-          <span className="setting-name">Corner radius</span>
+          <span className="setting-name">corners</span>
           <span className="setting-hint">{draft.radius}px</span>
         </div>
         <input
@@ -298,7 +298,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         />
       </div>
       <div className="setting-row" style={{ marginBottom: 10 }}>
-        <span className="setting-name">Density</span>
+        <span className="setting-name">spacing</span>
         <div className="te-seg" role="group" aria-label="Interface density">
           {DENSITIES.map((d) => (
             <button
@@ -313,7 +313,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         </div>
       </div>
       <div className="setting-row" style={{ marginBottom: 10 }}>
-        <span className="setting-name">Font</span>
+        <span className="setting-name">font</span>
         <select
           className="setting-select"
           value={draft.font}
@@ -328,11 +328,10 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         </select>
       </div>
 
-      <div className="pane-label" style={{ marginTop: 10 }}>Effects</div>
+      <div className="pane-label" style={{ marginTop: 10 }}>effects</div>
       <label className="setting-row toggle-row" style={{ marginBottom: 10 }}>
         <div className="setting-info">
-          <span className="setting-name">Blur & transparency</span>
-          <span className="setting-hint">Frosted-glass toolbar and panels</span>
+          <span className="setting-name">glass</span>
         </div>
         <span className="toggle-wrap">
           <input
@@ -348,7 +347,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
         <>
           <div className="setting-row" style={{ marginBottom: 10 }}>
             <div className="setting-info">
-              <span className="setting-name">Blur</span>
+              <span className="setting-name">blur</span>
               <span className="setting-hint">{draft.glass.blur}px</span>
             </div>
             <input
@@ -363,7 +362,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
           </div>
           <div className="setting-row" style={{ marginBottom: 10 }}>
             <div className="setting-info">
-              <span className="setting-name">Opacity</span>
+              <span className="setting-name">opacity</span>
               <span className="setting-hint">{draft.glass.opacity}%</span>
             </div>
             <input
@@ -380,7 +379,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
       )}
       <div className="setting-row" style={{ marginBottom: 10 }}>
         <div className="setting-info">
-          <span className="setting-name">Animations</span>
+          <span className="setting-name">motion</span>
           <span className="setting-hint">{ANIMATION_LEVELS.find((a) => a.id === draft.animation)?.hint}</span>
         </div>
         <div className="te-seg" role="group" aria-label="Animation level">
@@ -400,7 +399,7 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
       <div className="te-actions">
         <button className="action-btn te-save-btn" onClick={save}>
           <Icon name="check" size={13} />
-          Save & apply
+          save
         </button>
         <button
           className="action-btn"
@@ -408,21 +407,21 @@ function ThemeEditor({ initial, onClose }: { initial: CustomTheme; onClose: () =
             const def = THEMES.find((t) => t.id === draft.base) ?? THEMES[0];
             const fresh = themeFromBuiltin(def);
             setDraft({ ...fresh, id: draft.id, name: draft.name, base: draft.base });
-            toast.info("Theme reset to its starting palette");
+            toast.info("reset");
           }}
         >
           <Icon name="refresh-ccw" size={13} />
-          Reset colours & options
+          reset
         </button>
         {isSaved && (
           <ConfirmButton
             className="action-btn"
-            label="Delete theme"
-            confirmLabel="Click again to delete"
+            label="delete"
+            confirmLabel="click again to delete"
             icon="delete"
             onConfirm={() => {
               core.deleteCustomTheme(draft.id);
-              toast.info(`Theme “${draft.name}” deleted`);
+              toast.info(`deleted “${draft.name}”`);
               onClose();
             }}
           />
@@ -454,7 +453,7 @@ export function ThemesPane() {
         }}
       />
       <p className="pane-hint" style={{ marginTop: 14 }}>
-        Custom themes are saved only in this browser.
+        saved in this browser.
       </p>
     </>
   );

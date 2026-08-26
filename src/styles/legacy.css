@@ -627,8 +627,7 @@ body.tab-dragging .nav-frame { pointer-events: none; }
 .pane-label {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
+  letter-spacing: .02em;
   color: var(--text);
   opacity: 0.7;
   margin-bottom: 12px;
@@ -647,8 +646,7 @@ body.tab-dragging .nav-frame { pointer-events: none; }
 .theme-subhead {
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: .07em;
-  text-transform: uppercase;
+  letter-spacing: .02em;
   color: var(--text);
   padding: 0 2px;
 }
@@ -667,8 +665,7 @@ body.tab-dragging .nav-frame { pointer-events: none; }
 .theme-col-head {
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: .07em;
-  text-transform: uppercase;
+  letter-spacing: .02em;
   color: var(--muted);
   padding: 0 2px 2px;
 }

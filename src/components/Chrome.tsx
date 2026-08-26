@@ -220,7 +220,7 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
           >
             <GooeyInput
               inputId="url-bar"
-              placeholder="Search or enter address"
+              placeholder="search or enter address"
               value={value}
               onValueChange={setValue}
               collapsedWidth="100%"

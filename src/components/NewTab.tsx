@@ -17,10 +17,10 @@ const TodoWidget = lazyWidget("TodoWidget");
 const WeatherWidget = lazyWidget("WeatherWidget");
 
 function greeting(h: number) {
-  if (h < 5) return "Good night";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 5) return "good night";
+  if (h < 12) return "good morning";
+  if (h < 18) return "good afternoon";
+  return "good evening";
 }
 
 function Clock() {
@@ -98,11 +98,11 @@ function ShortcutForm({
         </label>
         <label>
           <span>Name</span>
-          <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="Optional — defaults to site" />
+          <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="optional. defaults to the site" />
         </label>
         <label>
           <span>Icon URL</span>
-          <input value={icon} onInput={(e) => setIcon(e.currentTarget.value)} placeholder="Optional — defaults to favicon" />
+          <input value={icon} onInput={(e) => setIcon(e.currentTarget.value)} placeholder="optional. defaults to favicon" />
         </label>
         <div className="ql-form-actions">
           <button type="button" className="ql-form-btn" onClick={onCancel}>
@@ -142,18 +142,15 @@ export function NewTab() {
       {settings.ntClock && <Clock />}
 
       <div id="brand">
-        <svg id="logo" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg id="logo" viewBox="0 0 1254 1254" xmlns="http://www.w3.org/2000/svg" aria-hidden>
           <path
-            d="M16 68 L16 38 Q16 12 40 12 Q64 12 64 38 L64 68"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            fill="none"
+            fill="currentColor"
+            fillRule="evenodd"
+            d="M626 176L1045 596L626 1015L207 596L626 176Z M647 299L820 503L585 738L585 900L413 688L647 455L647 299Z"
           />
-          <line x1="8" y1="68" x2="72" y2="68" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         </svg>
-        <h1 id="wordmark">Bardo</h1>
-        <span id="byline">By Liminal</span>
+        <h1 id="wordmark">bardo</h1>
+        <span id="byline">by liminal</span>
       </div>
 
       <form
@@ -168,7 +165,7 @@ export function NewTab() {
       >
         <GooeyInput
           inputId="search-input"
-          placeholder="Search or enter URL…"
+          placeholder="search or enter url"
           value={search}
           onValueChange={setSearch}
           collapsedWidth="100%"
@@ -290,7 +287,7 @@ export function NewTab() {
         <div className="nt-saved-shelf">
           {pinnedBookmarks.length > 0 && (
             <section className="nt-saved-section" aria-label="Pinned bookmarks">
-              <div className="nt-saved-label"><Icon name="bookmark" size={12} />Pinned</div>
+              <div className="nt-saved-label"><Icon name="bookmark" size={12} />pinned</div>
               <div className="nt-saved-row">
                 {pinnedBookmarks.slice(0, 8).map((bookmark) => {
                   let favicon = "";
@@ -302,7 +299,7 @@ export function NewTab() {
           )}
           {savedTabGroups.length > 0 && (
             <section className="nt-saved-section" aria-label="Saved tab groups">
-              <div className="nt-saved-label"><Icon name="layout-grid" size={12} />Saved groups</div>
+              <div className="nt-saved-label"><Icon name="layout-grid" size={12} />saved groups</div>
               <div className="nt-saved-row">
                 {savedTabGroups.map((group) => (
                   <div className="nt-saved-group" key={group.id}>
@@ -334,7 +331,7 @@ export function NewTab() {
       {abBlocked && (
         <button className="stealth-launch-btn" style={{ display: "flex" }} onClick={() => core.launchAboutBlank("session")}>
           <Icon name="eye" size={15} />
-          Open in stealth tab
+          open in stealth tab
         </button>
       )}
     </div>

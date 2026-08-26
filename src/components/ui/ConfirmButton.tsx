@@ -13,7 +13,7 @@ interface ConfirmButtonProps {
 
 export function ConfirmButton({
   label,
-  confirmLabel = "Click again to confirm",
+  confirmLabel = "click again",
   icon = "delete",
   onConfirm,
   className,

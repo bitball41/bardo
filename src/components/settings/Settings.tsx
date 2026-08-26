@@ -45,13 +45,13 @@ export function Settings({
 
   return (
     <div id="settings-overlay" className={open ? "open" : ""} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div id="settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
+      <div id="settings-modal" role="dialog" aria-modal="true" aria-label="settings">
         <div className="sm-header">
           <span className="sm-title">
             <Icon name="settings" size={17} />
-            Settings
+            settings
           </span>
-          <button className="nav-btn" title="Close settings" onClick={onClose}>
+          <button className="nav-btn" title="close settings" onClick={onClose}>
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <line x1="3" y1="3" x2="13" y2="13" />
               <line x1="13" y1="3" x2="3" y2="13" />
@@ -64,25 +64,25 @@ export function Settings({
           <input
             value={query}
             onInput={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Search settings"
-            aria-label="Search settings"
+            placeholder="search"
+            aria-label="search settings"
             autoFocus={false}
           />
-          {query && <button type="button" onClick={() => setQuery("")} aria-label="Clear settings search">×</button>}
+          {query && <button type="button" onClick={() => setQuery("")} aria-label="clear search">×</button>}
         </label>
 
         <div className="sm-body">
           <nav className="sm-sidebar">
             {matches ? (
               <div className="sm-group">
-                <div className="sm-group-label">Results</div>
+                <div className="sm-group-label">results</div>
                 {matches.map((item) => (
                   <button key={item.id} className={cn("sm-tab", pane === item.id && "active")} onClick={() => setPane(item.id)}>
                     <Icon name={item.icon} size={13} anim={pane === item.id ? undefined : "none"} />
                     <span><strong>{item.label}</strong><small>{item.desc}</small></span>
                   </button>
                 ))}
-                {matches.length === 0 && <p className="sm-search-empty">No settings match “{query.trim()}”.</p>}
+                {matches.length === 0 && <p className="sm-search-empty">nothing matches “{query.trim()}”</p>}
               </div>
             ) : SIDEBAR_GROUPS.map((g) => (
               <div key={g.group} className="sm-group">

@@ -156,8 +156,9 @@ app.get("/manifest.json", revalidate, (_request, response) => {
   response.type("application/manifest+json");
   response.sendFile(path.join(rootDir, "public/manifest.json"), { cacheControl: false });
 });
-for (const icon of ["apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-512-maskable.png"]) {
+for (const icon of ["apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-512-maskable.png", "bardo-favicon-inverted.svg"]) {
   app.get(`/${icon}`, cacheProxyRuntime, (_request, response) => {
+    if (icon.endsWith(".svg")) response.type("image/svg+xml");
     response.sendFile(path.join(rootDir, "public", icon), { cacheControl: false });
   });
 }
