@@ -85,6 +85,7 @@ export interface DiagnosticsData {
   status: string;
   statusWarn: boolean;
   wispUrl: string | null;
+  transport: "libcurl" | "epoxy" | null;
   tabs: TabView[];
   sleepingTabs: number;
   historyCount: number;
@@ -288,6 +289,7 @@ export function useDiagnostics(): DiagnosticsData {
       status: s.status,
       statusWarn: s.statusWarn,
       wispUrl: s.wispUrl,
+      transport: s.transport,
       tabs: s.tabs,
       historyCount: s.history.length,
       bookmarks: s.settings.bookmarks,
@@ -360,6 +362,7 @@ export function useDiagnostics(): DiagnosticsData {
     status: core.status,
     statusWarn: core.statusWarn,
     wispUrl: core.wispUrl,
+    transport: core.transport,
     tabs: core.tabs,
     sleepingTabs,
     historyCount: core.historyCount,

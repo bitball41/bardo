@@ -2,6 +2,7 @@ import express, { type RequestHandler } from "express";
 import compression from "compression";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
+import { setDefaultResultOrder } from "node:dns";
 import path from "node:path";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import { sherpaPath } from "sherpa/path";
@@ -9,6 +10,13 @@ import { klystronRouter, klystronUpgrade } from "./server/klystron.js";
 
 const app = express();
 const rootDir = __dirname;
+
+// Node 17+ resolves IPv6 first. On hosts with broken/partial IPv6 (typical
+// VPS + Cloudflare setups) that shows up as epoxy's `tls handshake eof`.
+setDefaultResultOrder("ipv4first");
+wisp.options.dns_result_order = "ipv4first";
+wisp.options.allow_private_ips = false;
+if ("allow_loopback_ips" in wisp.options) wisp.options.allow_loopback_ips = false;
 
 app.use(compression());
 

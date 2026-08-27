@@ -34,7 +34,9 @@ function serverIdentifier(d: DiagnosticsData): string {
 }
 
 function protocolLabel(d: DiagnosticsData): string {
-  return d.engine.kind === "server" ? "HTTPS (server-side rewrite)" : "WebSocket (Wisp)";
+  if (d.engine.kind === "server") return "HTTPS (server-side rewrite)";
+  if (d.transport) return `WebSocket (Wisp) · ${d.transport}`;
+  return "WebSocket (Wisp)";
 }
 
 export function ConnectionSection({ d }: { d: DiagnosticsData }) {
@@ -43,6 +45,7 @@ export function ConnectionSection({ d }: { d: DiagnosticsData }) {
     <DiagCard icon="link" title="Connection" status={status.tone} statusLabels={{ ok: "Connected", warn: "Connecting", critical: "Disconnected" }}>
       <DiagRow label="Status" value={status.label} valueTone={status.tone} />
       <DiagRow label="Active proxy engine" value={d.engine.name} />
+      <DiagRow label="Transport" value={d.transport ?? (d.engine.kind === "server" ? "server" : "—")} />
       <DiagRow label="Server" value={serverIdentifier(d)} />
       <DiagRow label="Protocol" value={protocolLabel(d)} />
       <DiagRow label="Estimated latency" value={d.network.latencyMs != null ? `${d.network.latencyMs} ms` : "Measuring…"} />

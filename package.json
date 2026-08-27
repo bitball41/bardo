@@ -8,7 +8,7 @@
     "server": "tsx server.ts",
     "dev": "vite",
     "typecheck": "tsc -b",
-    "test": "node --import tsx --test server/proxy-shared.test.ts shared/url-codec.test.ts shared/closed-shadow.test.ts",
+    "test": "node --import tsx --test server/proxy-shared.test.ts shared/url-codec.test.ts shared/closed-shadow.test.ts src/lib/transport.test.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy"
@@ -16,7 +16,7 @@
   "dependencies": {
     "@mercuryworkshop/bare-mux": "^2.1.9",
     "@mercuryworkshop/epoxy-transport": "^2.1.28",
-    "@mercuryworkshop/libcurl-transport": "^2.0.5",
+    "@mercuryworkshop/libcurl-transport": "^1.5.2",
     "@mercuryworkshop/scramjet": "^1.1.0",
     "@mercuryworkshop/wisp-js": "^0.4.1",
     "compression": "^1.8.1",

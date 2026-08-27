@@ -51,10 +51,19 @@ import { loadCustomThemes, MAX_CUSTOM_THEMES, sanitizeCustomTheme, saveCustomThe
 import { toast } from "./toast";
 import { logEvent, recordConnectionSuccess, recordEngineRestart } from "./diagnostics";
 import { decodeDest, decodeProxyPath, encodeProxyPath, pageLabel, pathCodec } from "../../shared/url-codec";
+import {
+  BAREMUX_WORKER,
+  TRANSPORTS,
+  type TransportId,
+  orderedWispUrls,
+  transportErrorMessage,
+} from "./transport";
 
 declare global {
   interface Window {
-    BareMux: { BareMuxConnection: new (worker: string) => BareMuxConnection };
+    BareMux: {
+      BareMuxConnection: new (worker: string) => BareMuxConnection;
+    };
     $scramjetLoadController: () => ScramjetControllerFactory;
     $sherpaLoadController: () => SherpaControllerFactory;
     __bardoCtrl?: ScramjetController | SherpaController | { _prefix: string; encodeUrl(url: string): string; decodeUrl(url: string): string; createFrame: (iframe: HTMLIFrameElement) => PrefixFrame };
@@ -89,6 +98,8 @@ export interface Snapshot {
   abBlocked: boolean;
   /** Host of the Wisp server currently in use; null for server-side engines. */
   wispUrl: string | null;
+  /** Active client transport; null for server-side engines. */
+  transport: TransportId | null;
   /** Non-null when a previous session is waiting on the restore prompt. */
   restorePrompt: { tabCount: number } | null;
 }
@@ -120,6 +131,7 @@ class BardoCore {
   private swUpdateDebounce: ReturnType<typeof setTimeout> | null = null;
   private swUpdateScheduled = false;
   private wispUrl: string | null = null;
+  private transport: TransportId | null = null;
   private capabilitiesReady = false;
   private engineSupport: Record<EngineName, boolean> = {
     sherpa: false,
@@ -186,6 +198,7 @@ class BardoCore {
       abLaunched: !!window.__bardoAbLaunched,
       abBlocked: !!window.__bardoAbBlocked,
       wispUrl: this.wispUrl,
+      transport: this.transport,
       restorePrompt: this.pendingSession
         ? { tabCount: this.pendingSession.tabs.length }
         : null,
@@ -428,6 +441,7 @@ class BardoCore {
     if (!support[this.settings.engine]) {
       this.ctrlReady = false;
       this.wispUrl = null;
+      this.transport = null;
       window.__bardoCtrl = undefined;
       this.setStatus("preview only. browsing isn't on this host.", true);
       return;
@@ -1283,10 +1297,22 @@ class BardoCore {
     return opened;
   }
 
+  /**
+   * A WebSocket `open` is not enough: Cloudflare/Caddy will 101 a socket that
+   * never speaks Wisp, and epoxy then dies with `tls handshake eof`. Wait for
+   * the server's CONTINUE/INFO packet.
+   */
   private checkWisp(url: string, timeoutMs = 8000) {
     return new Promise<boolean>((resolve) => {
       let settled = false;
-      const ws = new WebSocket(url);
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(url);
+      } catch {
+        resolve(false);
+        return;
+      }
+      ws.binaryType = "arraybuffer";
       const done = (ok: boolean) => {
         if (settled) return;
         settled = true;
@@ -1298,8 +1324,11 @@ class BardoCore {
         resolve(ok);
       };
       const t = setTimeout(() => done(false), timeoutMs);
-      ws.addEventListener("open", () => done(true));
+      ws.addEventListener("message", () => done(true));
       ws.addEventListener("error", () => done(false));
+      ws.addEventListener("close", () => {
+        if (!settled) done(false);
+      });
     });
   }
 
@@ -1325,19 +1354,47 @@ class BardoCore {
     });
   }
 
+  private async tryTransport(wispUrl: string): Promise<boolean> {
+    if (!this.conn) return false;
+    // Don't HTTPS-probe via BareClient here. Its header object is a plain
+    // Record, and libcurl-transport iterates it as pairs (`for...of headers`),
+    // which throws `Headers is not iterable` and falsely fails over to epoxy.
+    for (const spec of TRANSPORTS) {
+      try {
+        this.setStatus(`Setting up ${spec.name}…`);
+        await this.conn.setTransport(spec.path, [spec.options(wispUrl)]);
+        this.wispUrl = wispUrl;
+        this.transport = spec.id;
+        logEvent(`Using ${spec.name} via ${new URL(wispUrl).hostname}`);
+        return true;
+      } catch (error) {
+        console.warn(`[bardo] ${spec.id} transport failed:`, transportErrorMessage(error));
+      }
+    }
+    return false;
+  }
+
   private async setupTransport() {
     this.setStatus("Setting up transport…");
-    if (!this.conn) this.conn = new window.BareMux.BareMuxConnection("/baremux/worker.js");
+    if (!this.conn) this.conn = new window.BareMux.BareMuxConnection(BAREMUX_WORKER);
     const wsProto = location.protocol === "https:" ? "wss" : "ws";
     const localWisp = `${wsProto}://${location.host}/wisp/`;
-    const localReady = await this.checkWisp(localWisp, 1500);
-    const wispUrl = localReady
-      ? localWisp
-      : await this.firstReachable(PUBLIC_WISP_SERVERS);
-    if (!wispUrl) throw new Error("No Wisp server reachable — check your connection.");
-    await this.conn.setTransport("/epoxy/index.mjs", [{ wisp: wispUrl }]);
-    this.wispUrl = wispUrl;
-    return wispUrl;
+
+    const [localReady, publicUrl] = await Promise.all([
+      this.checkWisp(localWisp, 2500),
+      this.firstReachable(PUBLIC_WISP_SERVERS),
+    ]);
+
+    const verified = new Set<string>();
+    if (localReady) verified.add(localWisp);
+    if (publicUrl) verified.add(publicUrl);
+
+    for (const url of orderedWispUrls(localWisp, localReady, publicUrl, PUBLIC_WISP_SERVERS)) {
+      if (!verified.has(url) && !(await this.checkWisp(url, 4000))) continue;
+      if (await this.tryTransport(url)) return url;
+    }
+
+    throw new Error("No Wisp server reachable — check your connection.");
   }
 
   private async registerSW(swPath: string, scope: string) {
@@ -1547,6 +1604,7 @@ class BardoCore {
   // companion service worker (scoped to /klystron/) to catch runtime requests.
   private async initKlystron() {
     this.wispUrl = null;
+    this.transport = null;
     this.setStatus("Starting Klystron…");
     const reg = await this.registerSW("/sw-klystron.js", SVC_PREFIX_KLYSTRON);
     this.scheduleSWUpdate(reg);

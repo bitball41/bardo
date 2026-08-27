@@ -116,7 +116,7 @@ export interface SherpaControllerFactory {
 }
 
 export interface BareMuxConnection {
-  setTransport(path: string, args: [{ wisp: string }]): Promise<void>;
+  setTransport(path: string, args: unknown[], transferables?: Transferable[]): Promise<void>;
 }
 
 export interface Bookmark {
