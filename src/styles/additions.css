@@ -2358,3 +2358,45 @@ html[data-contrast="more"] .setting-row, html[data-contrast="more"] .action-btn,
   .bm-check { margin-left: 0; }
   .bm-row .bm-icon { opacity: 1; }
 }
+
+/* Restore-tabs prompt (shown on launch when restore mode is "ask") */
+.restore-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: min(18vh, 140px);
+  background: color-mix(in srgb, #000 35%, transparent);
+}
+.restore-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, 90vw);
+  padding: 16px 18px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.4);
+}
+.restore-prompt h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.restore-prompt-copy {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.restore-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}

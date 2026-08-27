@@ -7,6 +7,7 @@ import { NewTab } from "@/components/NewTab";
 import { FrameHost } from "@/components/FrameHost";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TabSwitcher } from "@/components/TabSwitcher";
+import { RestoreTabsPrompt } from "@/components/RestoreTabsPrompt";
 import { Toaster } from "@/components/ui/Toaster";
 import { BARDO_FAVICON, TAB_CLOAKS, WALLPAPER_KEY } from "@/lib/constants";
 import { applyThemeToDocument } from "@/lib/customThemes";
@@ -280,6 +281,8 @@ export default function App() {
         )}
 
         <TabSwitcher open={tabSwitcherOpen} onClose={() => setTabSwitcherOpen(false)} />
+
+        <RestoreTabsPrompt />
 
         <Toaster />
       </div>

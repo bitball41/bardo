@@ -6,7 +6,7 @@ import type { PaneId } from "@/lib/panes";
 import { toast } from "@/lib/toast";
 import { core, useBardoSelector } from "@/lib/useCore";
 import { useDiagnostics } from "@/lib/useDiagnostics";
-import type { CustomTheme, Settings as SettingsType, TabPosition, ThemeName } from "@/lib/types";
+import type { CustomTheme, RestoreTabsMode, Settings as SettingsType, TabPosition, ThemeName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -500,10 +500,33 @@ export function HistorySection({ onOpenHistory }: { onOpenHistory: () => void })
 export function PrivacySection() {
   const s = useBardoSelector((snapshot) => snapshot.settings);
   const historyCount = useBardoSelector((snapshot) => snapshot.history.length);
+  const restoreHint =
+    s.sessionOnly
+      ? "paused"
+      : s.restoreTabs === "ask"
+        ? "prompt on reopen"
+        : s.restoreTabs === "always"
+          ? "open last session"
+          : "don't save";
   return (
     <>
       <ToggleRow name="save history" hint={s.sessionOnly ? "paused" : `${historyCount} saved`} k="historyEnabled" s={s} />
-      <ToggleRow name="restore tabs" hint={s.sessionOnly ? "paused" : "open last session"} k="restoreTabs" s={s} />
+      <div className="setting-row" style={{ marginBottom: 10 }}>
+        <div className="setting-info">
+          <span className="setting-name">restore tabs</span>
+          <span className="setting-hint">{restoreHint}</span>
+        </div>
+        <select
+          className="setting-select"
+          value={s.restoreTabs}
+          disabled={s.sessionOnly}
+          onChange={(e) => core.setSetting("restoreTabs", e.currentTarget.value as RestoreTabsMode)}
+        >
+          <option value="ask">Ask</option>
+          <option value="always">Automatically</option>
+          <option value="never">Never</option>
+        </select>
+      </div>
       <ToggleRow name="session only" hint="forget after close" k="sessionOnly" s={s} />
       <div className="privacy-actions" style={{ marginTop: 16 }}>
         <ConfirmButton className="action-btn" label="clear history" confirmLabel="click again to clear" icon="delete" onConfirm={() => { core.clearBrowsingData(); toast.success("cleared"); }} />

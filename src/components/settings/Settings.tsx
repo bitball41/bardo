@@ -15,7 +15,7 @@ const SEARCH_TERMS: Record<PaneId, string> = {
   search: "search proxy engine google bing brave startpage duckduckgo",
   bookmarks: "bookmarks folders reorder import export json pin new tab favicons open folder tabs",
   history: "history save browsing clear local data privacy",
-  privacy: "privacy history local data clear session only restore tabs storage",
+  privacy: "privacy history local data clear session only restore tabs ask automatically never storage",
   cloaker: "cloak tab title favicon disguise canvas drive classroom about:blank launcher popup",
   safety: "panic key quick exit shortcut redirect escape emergency safe page",
   advanced: "proxy sherpa scramjet klystron engine rewrite cache streaming developer tools eruda compare faster",

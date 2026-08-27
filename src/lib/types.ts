@@ -27,6 +27,8 @@ export type ThemeName =
 export type TabPosition = "top" | "bottom" | "left" | "right";
 export type EngineName = "scramjet" | "klystron" | "sherpa";
 export type WallpaperType = "none" | "gradient" | "image";
+/** How Bardo handles tabs from the previous session on launch. */
+export type RestoreTabsMode = "ask" | "always" | "never";
 
 export type CustomThemeId = `custom:${string}`;
 export type ThemeMode = "dark" | "light";
@@ -156,7 +158,7 @@ export interface Settings {
   engine: EngineName;
   tabPosition: TabPosition;
   ntClock: boolean;
-  restoreTabs: boolean;
+  restoreTabs: RestoreTabsMode;
   historyEnabled: boolean;
   sessionOnly: boolean;
   moreContrast: boolean;
