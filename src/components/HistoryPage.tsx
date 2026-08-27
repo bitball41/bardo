@@ -44,7 +44,11 @@ export function HistoryPage({ open, onClose, onOpenUrl }: HistoryPageProps) {
   const items = useMemo(() => {
     const query = q.trim().toLowerCase();
     return history.filter(
-      (h) => !query || (h.title || "").toLowerCase().includes(query) || h.url.toLowerCase().includes(query),
+      (h) =>
+        !query ||
+        hostOf(h.url).toLowerCase().includes(query) ||
+        (h.title || "").toLowerCase().includes(query) ||
+        h.url.toLowerCase().includes(query),
     );
   }, [history, q]);
 
@@ -58,6 +62,8 @@ export function HistoryPage({ open, onClose, onOpenUrl }: HistoryPageProps) {
     }
     rows.push(h);
   }
+
+  if (!open) return null;
 
   return (
     <div id="history-page" className={open ? "open" : ""} role="dialog" aria-modal="true" aria-label="Browsing history">
@@ -110,7 +116,7 @@ export function HistoryPage({ open, onClose, onOpenUrl }: HistoryPageProps) {
                 <button
                   key={"h" + i}
                   className="hp-item"
-                  title={row.url}
+                  title={hostOf(row.url)}
                   onClick={() => {
                     onClose();
                     onOpenUrl(row.url);
@@ -122,7 +128,7 @@ export function HistoryPage({ open, onClose, onOpenUrl }: HistoryPageProps) {
                   </span>
                   <HistoryFav url={row.url} />
                   <span className="hp-main">
-                    <span className="hp-title">{row.title || hostOf(row.url)}</span>
+                    <span className="hp-title">{hostOf(row.url)}</span>
                     <span className="hp-url">{hostOf(row.url)}</span>
                   </span>
                   <span

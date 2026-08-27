@@ -74,11 +74,17 @@ export interface ScramjetFrame {
   addEventListener(type: "urlchange", fn: (e: { url: string }) => void): void;
 }
 
+export interface UrlCodec {
+  encode: (url: string) => string;
+  decode: (url: string) => string;
+}
+
 export interface ScramjetControllerFactory {
   ScramjetController: new (opts: {
     prefix: string;
     files: { wasm: string; all: string; sync: string };
     flags?: EngineRewriteFlags;
+    codec?: UrlCodec;
   }) => ScramjetController;
 }
 
@@ -103,6 +109,7 @@ export interface SherpaControllerFactory {
     globals?: Record<string, string>;
     errorPage?: Record<string, string>;
     flags?: EngineRewriteFlags;
+    codec?: UrlCodec;
   }) => SherpaController;
 }
 

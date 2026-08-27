@@ -3,10 +3,49 @@
 // Registered at scope /klystron/ so it controls ONLY the proxied iframes, never
 // Bardo's own shell. The server rewrites every URL it can see in the page's
 // HTML/CSS/JS; this worker catches what's left — runtime fetch()/XHR, dynamically
-// inserted elements, absolute-path requests — and reroutes them through
-// /klystron/<encoded> so they're proxied too.
+// inserted elements, absolute-path requests — and reroutes those back through
+// /klystron/<opaque> so they're proxied too.
+//
+// Codec MUST match shared/url-codec.ts (XOR + URL-safe base64). Percent-encoding
+// alone is not a codec; dest host/query must not appear in iframe src or fetches.
 
 const PREFIX = "/klystron/";
+const CODEC_KEY = "bardo";
+
+function encodeDest(url) {
+  if (!url) return url;
+  const bytes = new TextEncoder().encode(url);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) {
+    bin += String.fromCharCode(bytes[i] ^ CODEC_KEY.charCodeAt(i % CODEC_KEY.length));
+  }
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeDest(encoded) {
+  if (!encoded) return encoded;
+  const payload = String(encoded).replace(/^\/+/, "").split("#")[0].split("?")[0];
+  try {
+    let b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i) ^ CODEC_KEY.charCodeAt(i % CODEC_KEY.length);
+    }
+    const decoded = new TextDecoder().decode(bytes);
+    if (/^https?:\/\//i.test(decoded)) return decoded;
+  } catch {
+    /* fall through to legacy percent-encoding */
+  }
+  try {
+    const legacy = decodeURIComponent(payload);
+    if (/^https?:\/\//i.test(legacy)) return legacy;
+  } catch {
+    /* ignore */
+  }
+  return payload;
+}
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -42,7 +81,7 @@ async function pageRemoteUrl(event) {
     try {
       const u = new URL(ref);
       if (u.origin === self.location.origin && u.pathname.startsWith(PREFIX)) {
-        return decodeURIComponent(u.pathname.slice(PREFIX.length));
+        return decodeDest(u.pathname.slice(PREFIX.length));
       }
     } catch {
       /* skip unparseable */
@@ -73,7 +112,7 @@ async function handle(event) {
     target = request.url;
   }
 
-  const proxyUrl = origin + PREFIX + encodeURIComponent(target);
+  const proxyUrl = origin + PREFIX + encodeDest(target);
 
   const method = request.method.toUpperCase();
   const hasBody = method !== "GET" && method !== "HEAD";

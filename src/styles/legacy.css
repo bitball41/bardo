@@ -203,8 +203,11 @@ body.tab-dragging .nav-frame { pointer-events: none; }
 
 #nav-btns { display: flex; gap: 2px; }
 
-#chrome-form {
+#chrome-form,
+.chrome-address-host {
   flex: 1; min-width: 0; margin: 0 6px;
+  display: flex;
+  align-items: center;
 }
 
 #url-bar {

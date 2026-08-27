@@ -5,6 +5,7 @@ import { gFav } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { core, shallowEqual, useBardoSelector } from "@/lib/useCore";
 import type { Shortcut } from "@/lib/types";
+import { pageLabel } from "../../shared/url-codec";
 
 const lazyWidget = <T extends keyof typeof import("@/components/widgets")>(name: T) =>
   lazy(() => import("@/components/widgets").then((module) => ({ default: module[name] })));
@@ -203,7 +204,7 @@ export function NewTab() {
               <div
                 key={i}
                 className={`ql-item${editing ? " ql-editing" : ""}${dragIdx === i ? " ql-dragging" : ""}`}
-                title={sc.url}
+                title={pageLabel(sc.url)}
                 role="button"
                 tabIndex={0}
                 draggable={editing}
@@ -292,7 +293,7 @@ export function NewTab() {
                 {pinnedBookmarks.slice(0, 8).map((bookmark) => {
                   let favicon = "";
                   try { favicon = `https://www.google.com/s2/favicons?domain=${new URL(bookmark.url).hostname}&sz=32`; } catch {}
-                  return <button key={bookmark.id} className="nt-saved-chip" title={bookmark.url} onClick={() => core.navigate(bookmark.url)}>{favicon ? <img src={favicon} alt="" /> : <Icon name="bookmark" size={12} />}<span>{bookmark.title}</span></button>;
+                  return <button key={bookmark.id} className="nt-saved-chip" title={pageLabel(bookmark.url)} onClick={() => core.navigate(bookmark.url)}>{favicon ? <img src={favicon} alt="" /> : <Icon name="bookmark" size={12} />}<span>{bookmark.title}</span></button>;
                 })}
               </div>
             </section>
