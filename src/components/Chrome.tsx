@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icons";
+import { ClosedShadowHost } from "@/components/ui/closed-shadow-host";
 import { GooeyInput } from "@/components/ui/gooey-input";
 import { WaffleMenu } from "@/components/WaffleMenu";
 import { SectionBody } from "@/components/settings/sections";
 import { PANE_BY_ID, type PaneId } from "@/lib/panes";
 import { paneOf, type ToolbarEntry } from "@/lib/toolbar";
 import { toast } from "@/lib/toast";
+import { setAddressBarFocus } from "@/lib/closed-shadow";
 import { core, shallowEqual, useBardoSelector } from "@/lib/useCore";
 import { cn } from "@/lib/utils";
 
@@ -138,10 +140,16 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
   const [value, setValue] = useState(activeUrl);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const mobile = useMobileChrome();
+  const addressFocusRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setValue(activeUrl);
   }, [activeUrl]);
+
+  useEffect(() => {
+    setAddressBarFocus(() => addressFocusRef.current?.());
+    return () => setAddressBarFocus(null);
+  }, []);
 
   useEffect(() => {
     if (copyState === "idle") return;
@@ -208,39 +216,42 @@ export function Chrome({ onSettings, onHistory, onTabSwitcher, fullscreen, onTog
         );
       case "address":
         return (
-          <form
-            key={entry.key}
-            id="chrome-form"
-            autoComplete="off"
-            spellCheck={false}
-            onSubmit={(e) => {
-              e.preventDefault();
-              core.submitUrl(e.currentTarget.querySelector<HTMLInputElement>("#url-bar")?.value ?? value);
-            }}
-          >
-            <GooeyInput
-              inputId="url-bar"
-              placeholder="search or enter address"
-              value={value}
-              onValueChange={setValue}
-              collapsedWidth="100%"
-              expandedWidth="calc(100% - 32px)"
-              expandedOffset={32}
-              gooeyBlur={5}
-              collapseOnBlur
-              clearOnCollapse={false}
-              selectOnFocus
-              className="gooey-address-root"
-              classNames={{
-                filterWrap: "gooey-address-filter",
-                buttonRow: "gooey-address-row",
-                trigger: "gooey-address-trigger",
-                input: "gooey-address-input",
-                bubble: "gooey-address-bubble",
-                bubbleSurface: "gooey-address-bubble-surface",
+          <ClosedShadowHost key={entry.key} id="chrome-form" className="chrome-address-host">
+            <form
+              autoComplete="off"
+              spellCheck={false}
+              style={{ flex: 1, minWidth: 0, width: "100%", margin: 0 }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const typed = e.currentTarget.querySelector<HTMLInputElement>("#url-bar")?.value ?? value;
+                core.submitUrl(typed);
               }}
-            />
-          </form>
+            >
+              <GooeyInput
+                inputId="url-bar"
+                placeholder="search or enter address"
+                value={value}
+                onValueChange={setValue}
+                focusRef={addressFocusRef}
+                collapsedWidth="100%"
+                expandedWidth="calc(100% - 32px)"
+                expandedOffset={32}
+                gooeyBlur={5}
+                collapseOnBlur
+                clearOnCollapse={false}
+                selectOnFocus
+                className="gooey-address-root"
+                classNames={{
+                  filterWrap: "gooey-address-filter",
+                  buttonRow: "gooey-address-row",
+                  trigger: "gooey-address-trigger",
+                  input: "gooey-address-input",
+                  bubble: "gooey-address-bubble",
+                  bubbleSurface: "gooey-address-bubble-surface",
+                }}
+              />
+            </form>
+          </ClosedShadowHost>
         );
       case "copy-link":
         return (

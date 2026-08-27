@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type FormEvent,
+  type MutableRefObject,
 } from "react";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +65,8 @@ export interface GooeyInputProps {
   clearOnCollapse?: boolean;
   selectOnFocus?: boolean;
   disabled?: boolean;
+  /** Lets Ctrl+L (and similar) expand/focus the field even when it lives in a closed shadow root. */
+  focusRef?: MutableRefObject<(() => void) | null>;
 }
 
 export function GooeyInput({
@@ -83,6 +86,7 @@ export function GooeyInput({
   clearOnCollapse = true,
   selectOnFocus = false,
   disabled = false,
+  focusRef,
 }: GooeyInputProps) {
   const filterId = `gooey-${useId().replace(/:/g, "")}`;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,6 +117,22 @@ export function GooeyInput({
     else if (wasExpanded.current && clearOnCollapse) setValue("");
     wasExpanded.current = expanded;
   }, [clearOnCollapse, expanded, setValue]);
+
+  useEffect(() => {
+    if (!focusRef) return;
+    focusRef.current = () => {
+      setExpanded(true);
+      requestAnimationFrame(() => {
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        if (selectOnFocus) input.select();
+      });
+    };
+    return () => {
+      if (focusRef.current) focusRef.current = null;
+    };
+  }, [focusRef, selectOnFocus, setExpanded]);
 
   const rowStyle: CSSProperties = {
     width: expanded ? expandedWidth : collapsedWidth,

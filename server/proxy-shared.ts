@@ -9,6 +9,7 @@ import { isIP } from "node:net";
 import { lookup } from "node:dns/promises";
 import { JSDOM } from "jsdom";
 import type { CookieJar } from "tough-cookie";
+import { decodeDest, decodeProxyPath, encodeDest } from "../shared/url-codec.js";
 
 // ---------------------------------------------------------------------------
 // SSRF guard — refuse to let a proxy engine reach the box it runs on / the LAN.
@@ -108,9 +109,11 @@ export const STRIP_REQUEST_HEADERS = new Set([
 function decodeProxyRef(value: string | undefined, prefix: string): string | undefined {
   if (!value) return undefined;
   try {
+    const real = decodeProxyPath(prefix, value);
+    if (real) return real;
     const u = new URL(value, "http://b");
     if (u.pathname.startsWith(prefix)) {
-      return decodeURIComponent(u.pathname.slice(prefix.length));
+      return decodeDest(u.pathname.slice(prefix.length));
     }
   } catch {
     /* fall through */
@@ -241,7 +244,7 @@ export function copyResponseHeaders(res: Response, headers: Headers): void {
 
 // ---------------------------------------------------------------------------
 // HTML / CSS / JS URL rewriting (jsdom). Every reference is pinned to the
-// absolute remote URL, then wrapped as `${prefix}<encoded>`.
+// absolute remote URL, then wrapped as `${prefix}<xor+base64url dest>`.
 // ---------------------------------------------------------------------------
 
 const SKIP_PROTOCOLS = [
@@ -514,7 +517,7 @@ export function rewrite(
     return SKIP_PROTOCOLS.some((p) => v.startsWith(p));
   };
   const wrap = (value: string): string =>
-    shouldSkip(value) ? value : prefix + encodeURIComponent(resolve(value));
+    shouldSkip(value) ? value : prefix + encodeDest(resolve(value));
 
   const fixSrcset = (value: string): string => rewriteSrcset(value, wrap);
   const fixCss = (css: string): string => rewriteCss(css, wrap);

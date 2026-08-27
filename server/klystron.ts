@@ -3,7 +3,7 @@
 // Unlike Scramjet (which intercepts and rewrites everything client-side via a
 // service worker + wasm), Klystron does the work on the server: it fetches the
 // target URL with Node's `fetch`, rewrites every URL in the returned
-// HTML/CSS/JS so it points back through `/klystron/<encoded>`, and streams the
+// HTML/CSS/JS so it points back through `/klystron/<opaque-dest>`, and streams the
 // result to the iframe. A small companion service worker (sw-klystron.js)
 // catches the runtime requests the static rewrite can't see (fetch/XHR, dynamic
 // elements) and routes those back through here too.
@@ -32,6 +32,7 @@ import {
   rewrite,
   type Upstream,
 } from "./proxy-shared.js";
+import { decodeDest } from "../shared/url-codec.js";
 
 export const KLYSTRON_PREFIX = "/klystron/";
 
@@ -77,9 +78,9 @@ function getSessionJar(req: Request, res: Response): CookieJar {
 async function handle(req: Request, res: Response): Promise<void> {
   let target: string;
   try {
-    const raw = req.url.replace(/^\/+/, "").split("#")[0];
+    const raw = req.url.replace(/^\/+/, "").split("#")[0].split("?")[0];
     if (!raw) { res.status(400).type("text/plain").send("Klystron: missing target URL"); return; }
-    target = decodeURIComponent(raw);
+    target = decodeDest(raw);
   } catch {
     res.status(400).type("text/plain").send("Klystron: malformed target URL");
     return;
@@ -138,7 +139,12 @@ async function handle(req: Request, res: Response): Promise<void> {
 
 function parseUpgradeTarget(reqUrl: string | undefined): string | null {
   if (!reqUrl || !reqUrl.startsWith(KLYSTRON_PREFIX)) return null;
-  try { return decodeURIComponent(reqUrl.slice(KLYSTRON_PREFIX.length)); } catch { return null; }
+  try {
+    const decoded = decodeDest(reqUrl.slice(KLYSTRON_PREFIX.length));
+    return decoded || null;
+  } catch {
+    return null;
+  }
 }
 
 export function klystronUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {

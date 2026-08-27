@@ -3,6 +3,7 @@ import { Icon } from "@/components/icons";
 import { core, useBardoSelector } from "@/lib/useCore";
 import type { TabView } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { pageLabel } from "../../shared/url-codec";
 
 export function TabSwitcher({ open, onClose }: { open: boolean; onClose: () => void }) {
   const tabs = useBardoSelector((s) => s.tabs);
@@ -133,7 +134,7 @@ function TabSwitcherItem({
         )}
       </span>
       <span className="tab-switcher-title">{tab.title}</span>
-      <span className="tab-switcher-url">{tab.url}</span>
+      <span className="tab-switcher-url">{pageLabel(tab.url)}</span>
       {tab.pinned && <Icon name="bookmark" size={12} className="tab-switcher-pin" />}
     </div>
   );

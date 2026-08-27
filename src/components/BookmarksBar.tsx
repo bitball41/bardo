@@ -133,7 +133,7 @@ export function BookmarksBar() {
       <div className="bm-row" key={bookmark.id}>
         <button
           className="bm-row-open"
-          title={bookmark.url}
+          title={hostOf(bookmark.url)}
           onClick={() => {
             core.navigate(bookmark.url);
             setPanel(null);
@@ -300,7 +300,7 @@ export function BookmarksBar() {
             <button
               key={bookmark.id}
               className={`bookmark-item${dragId === bookmark.id ? " dragging" : ""}`}
-              title={bookmark.url}
+              title={hostOf(bookmark.url)}
               draggable
               onDragStart={(event) => onBarDragStart(event, bookmark)}
               onDragOver={(event) => event.preventDefault()}

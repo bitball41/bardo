@@ -430,7 +430,11 @@ export function BookmarksSection() {
         <div className="bm-settings-list">
           {s.bookmarks.map((bookmark, index) => {
             let favicon = "";
-            try { favicon = `https://www.google.com/s2/favicons?domain=${new URL(bookmark.url).hostname}&sz=32`; } catch {}
+            let hostname = bookmark.title;
+            try {
+              hostname = new URL(bookmark.url).hostname;
+              favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+            } catch {}
             return (
               <div className="bm-settings-row" key={bookmark.id}>
                 <span className="bm-settings-favicon">{favicon ? <img src={favicon} alt="" /> : <Icon name="bookmark" size={13} />}</span>
@@ -438,7 +442,7 @@ export function BookmarksSection() {
                   <input
                     className="setting-input"
                     value={bookmark.title}
-                    aria-label={`Bookmark title for ${bookmark.url}`}
+                    aria-label={`Bookmark title for ${hostname}`}
                     onChange={(event) => core.updateBookmark(bookmark.id, { title: event.currentTarget.value })}
                   />
                   <input

@@ -10,6 +10,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 import { isBlockedHost, rewrite } from "./proxy-shared.js";
+import { encodeDest } from "../shared/url-codec.js";
 
 // Feed hostnames the way callers do: via URL parsing, which normalizes IP forms
 // (e.g. decimal/hex IPv4, and ::ffff:127.0.0.1 -> [::ffff:7f00:1]).
@@ -44,26 +45,27 @@ test("blocks an empty host", () => assert.equal(isBlockedHost(""), true));
 
 const BASE = "https://example.com/path/page.html";
 const PREFIX = "/proxy/";
+const wrapped = (url: string) => PREFIX + encodeDest(url);
 
 test("rewrites srcset without splitting a data URL comma", () => {
   const html = '<img srcset="data:image/svg+xml,%3Csvg%3E 1x, /image-2x.png 2x">';
   const output = rewrite(BASE, html, "text/html", PREFIX);
   assert.match(output, /data:image\/svg\+xml,%3Csvg%3E 1x/);
-  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fimage-2x\.png 2x/);
+  assert.ok(output.includes(wrapped("https://example.com/image-2x.png") + " 2x"));
 });
 
 test("rewrites quoted CSS URLs containing parentheses and imports", () => {
   const html = '<style>@import "./theme.css"; .hero{background:url("/image(foo).png")}</style>';
   const output = rewrite(BASE, html, "text/html", PREFIX);
-  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fpath%2Ftheme\.css/);
-  assert.match(output, /\/proxy\/https%3A%2F%2Fexample\.com%2Fimage\(foo\)\.png/);
+  assert.ok(output.includes(wrapped("https://example.com/path/theme.css")));
+  assert.ok(output.includes(wrapped("https://example.com/image(foo).png")));
 });
 
 test("rewrites JavaScript URL literals but leaves comments and labels alone", () => {
   const html = '<script>// "/comment-only"\nconst api="/api"; const label="not/a/url";</script>';
   const output = rewrite(BASE, html, "text/html", PREFIX);
   assert.match(output, /\/\/ "\/comment-only"/);
-  assert.match(output, /const api="\/proxy\/https%3A%2F%2Fexample\.com%2Fapi"/);
+  assert.ok(output.includes(`const api="${wrapped("https://example.com/api")}"`));
   assert.match(output, /const label="not\/a\/url"/);
 });
 
@@ -72,6 +74,18 @@ test("reuses an existing parsed document", () => {
   rewrite(BASE, dom.serialize(), "text/html", PREFIX, dom);
   assert.equal(
     dom.window.document.querySelector("a")?.getAttribute("href"),
-    PREFIX + encodeURIComponent("https://example.com/next"),
+    wrapped("https://example.com/next"),
   );
+});
+
+test("rewritten search hrefs do not contain dest host or q=", () => {
+  const dest = "https://www.startpage.com/search?q=unblocked+games";
+  const html = `<a href="${dest}">search</a>`;
+  const output = rewrite(dest, html, "text/html", PREFIX);
+  const href = new JSDOM(output).window.document.querySelector("a")?.getAttribute("href") ?? "";
+  assert.equal(href, wrapped(dest));
+  assert.doesNotMatch(href, /startpage/i);
+  assert.doesNotMatch(href, /unblocked/i);
+  assert.doesNotMatch(href, /q=/i);
+  assert.doesNotMatch(output, /https%3A%2F%2Fwww\.startpage/i);
 });

@@ -10,6 +10,7 @@ import { TabSwitcher } from "@/components/TabSwitcher";
 import { Toaster } from "@/components/ui/Toaster";
 import { BARDO_FAVICON, TAB_CLOAKS, WALLPAPER_KEY } from "@/lib/constants";
 import { applyThemeToDocument } from "@/lib/customThemes";
+import { focusAddressBar } from "@/lib/closed-shadow";
 import { core, shallowEqual, useBardoSelector } from "@/lib/useCore";
 
 const HistoryPage = lazy(() =>
@@ -181,12 +182,7 @@ export default function App() {
       switch (e.key.toLowerCase()) {
         case "l":
           e.preventDefault();
-          {
-            const urlBar = document.getElementById("url-bar");
-            const trigger = urlBar?.parentElement?.querySelector<HTMLButtonElement>("button");
-            if (trigger) trigger.click();
-            else urlBar?.focus();
-          }
+          focusAddressBar();
           break;
         case "t":
           e.preventDefault();

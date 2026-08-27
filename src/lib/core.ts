@@ -49,13 +49,14 @@ import {
 import { loadCustomThemes, MAX_CUSTOM_THEMES, sanitizeCustomTheme, saveCustomThemes } from "./customThemes";
 import { toast } from "./toast";
 import { logEvent, recordConnectionSuccess, recordEngineRestart } from "./diagnostics";
+import { decodeDest, decodeProxyPath, encodeProxyPath, pageLabel, pathCodec } from "../../shared/url-codec";
 
 declare global {
   interface Window {
     BareMux: { BareMuxConnection: new (worker: string) => BareMuxConnection };
     $scramjetLoadController: () => ScramjetControllerFactory;
     $sherpaLoadController: () => SherpaControllerFactory;
-    __bardoCtrl?: ScramjetController | SherpaController | { _prefix: string; createFrame: (iframe: HTMLIFrameElement) => PrefixFrame };
+    __bardoCtrl?: ScramjetController | SherpaController | { _prefix: string; encodeUrl(url: string): string; decodeUrl(url: string): string; createFrame: (iframe: HTMLIFrameElement) => PrefixFrame };
     eruda?: { init(): void; show(): void; hide(): void };
   }
 }
@@ -504,10 +505,13 @@ class BardoCore {
       }
     }
     const prefix = location.origin + this.activeSvcPrefix();
-    if (href.startsWith(prefix)) {
+    if (href.startsWith(prefix) || href.startsWith(this.activeSvcPrefix())) {
+      const real = decodeProxyPath(this.activeSvcPrefix(), href);
+      if (real) return real;
       try {
-        const real = decodeURIComponent(href.slice(prefix.length));
-        if (/^https?:\/\//i.test(real)) return real;
+        const sliced = href.startsWith(prefix) ? href.slice(prefix.length) : href.slice(this.activeSvcPrefix().length);
+        const fallback = decodeDest(sliced);
+        if (/^https?:\/\//i.test(fallback)) return fallback;
       } catch {
       }
     }
@@ -893,17 +897,15 @@ class BardoCore {
       host = new URL(url).hostname;
     } catch {
     }
-    tab.title = host || "Loading…";
+    tab.title = pageLabel(url);
     tab.favicon = host ? gFav(host) : null;
   }
 
   private refreshTabMeta(tab: InternalTab) {
-    try {
-      const doc = tab.iframe.contentWindow?.document;
-      const t = doc?.title?.trim();
-      if (t) tab.title = t;
-    } catch {
-    }
+    // Keep hostname-only titles in the parent chrome. iframe document.title
+    // often echoes the search query ("unblocked games - Startpage") which
+    // would leak into tab labels, aria, and history rows.
+    if (tab.url) this.applyUrlMeta(tab, tab.url);
   }
 
   private startProgress() {
@@ -940,7 +942,7 @@ class BardoCore {
     if (ctrl && "encodeUrl" in ctrl && typeof ctrl.encodeUrl === "function") {
       return new URL(ctrl.encodeUrl(rawUrl), location.origin).href;
     }
-    return location.origin + this.activeSvcPrefix() + encodeURIComponent(rawUrl);
+    return location.origin + encodeProxyPath(this.activeSvcPrefix(), rawUrl);
   }
 
   navigate(url: string) {
@@ -1374,6 +1376,7 @@ class BardoCore {
         sync: "/scramjet/scramjet.sync.js",
       },
       flags: { sourcemaps: false, captureErrors: false },
+      codec: pathCodec,
     });
     try {
       await ctrl.init();
@@ -1437,6 +1440,7 @@ class BardoCore {
       // Source maps retain original rewrite spans and inflate rewritten
       // scripts. Bardo's normal browsing path does not need that debug data.
       flags: { sourcemaps: false, captureErrors: false },
+      codec: pathCodec,
     });
     try {
       await ctrl.init();
@@ -1468,14 +1472,10 @@ class BardoCore {
     this.scheduleSWUpdate(reg);
     window.__bardoCtrl = {
       _prefix: SVC_PREFIX_KLYSTRON,
+      encodeUrl: (url: string) => encodeProxyPath(SVC_PREFIX_KLYSTRON, url),
+      decodeUrl: (href: string) => decodeProxyPath(SVC_PREFIX_KLYSTRON, href) ?? href,
       createFrame: (iframe: HTMLIFrameElement) =>
-        new PrefixFrame(iframe, SVC_PREFIX_KLYSTRON, (href) => {
-          try {
-            return decodeURIComponent(href.slice((location.origin + SVC_PREFIX_KLYSTRON).length));
-          } catch {
-            return null;
-          }
-        }),
+        new PrefixFrame(iframe, SVC_PREFIX_KLYSTRON, (href) => decodeProxyPath(SVC_PREFIX_KLYSTRON, href)),
     };
     this.ctrlReady = true;
     sessionStorage.removeItem("bardo-sw-fix-attempted");
@@ -1726,10 +1726,10 @@ class BardoCore {
   }
 }
 
-// A frame driven purely by setting `iframe.src = prefix + encodeURIComponent(url)`.
+// A frame driven purely by setting `iframe.src = prefix + encodeDest(url)`.
 // Used by the server-side engines. An optional `decode` recovers
 // the real remote URL from the proxied href so the address bar / history stay
-// accurate (Klystron's prefix encoding is a plain encodeURIComponent).
+// accurate (the payload after the prefix is XOR+base64url, not percent-encoding).
 class PrefixFrame {
   private listeners: Record<string, ((e: any) => void)[]> = {};
   private iframe: HTMLIFrameElement;
@@ -1752,7 +1752,7 @@ class PrefixFrame {
     }
   }
   go(url: string) {
-    this.iframe.src = this.prefix + encodeURIComponent(url);
+    this.iframe.src = encodeProxyPath(this.prefix, url);
   }
   reload() {
     this.iframe.contentWindow?.location.reload();
