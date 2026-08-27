@@ -11,7 +11,7 @@ import {
 test("libcurl is the default transport, epoxy is the fallback", () => {
   assert.equal(TRANSPORTS[0]?.id, "libcurl");
   assert.equal(TRANSPORTS[1]?.id, "epoxy");
-  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-h1");
+  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-ca60");
   const libcurlOpts = TRANSPORTS[0].options("wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.wisp, "wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.websocket, "wss://bardo.example/wisp/");
@@ -65,6 +65,12 @@ test("isTlsHandshakeError matches Hyper/epoxy's eof wrapper", () => {
   assert.equal(isTlsHandshakeError("tls handshake eof"), true);
   assert.equal(
     isTlsHandshakeError(new TypeError("Request failed with error code 35: SSL connect error")),
+    true,
+  );
+  assert.equal(
+    isTlsHandshakeError(
+      new TypeError("Request failed with error code 60: SSL peer certificate or SSH remote key was not OK"),
+    ),
     true,
   );
 });

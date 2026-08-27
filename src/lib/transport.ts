@@ -10,7 +10,8 @@ import { PUBLIC_WISP_SERVERS } from "./constants";
  * Epoxy is only a last-ditch fallback if libcurl fails to load.
  *
  * `/libcurl/index.mjs` is Bardo's wrapper: HTTP/1.1 (so ALPN isn't `h2`,
- * which Cloudflare often RST as curl error 35) plus Wisp failover.
+ * which Cloudflare often RST as curl error 35), Wisp failover on 35/60,
+ * then epoxy if mbedtls still hates the cert.
  */
 
 export type TransportId = "libcurl" | "epoxy";
@@ -28,7 +29,7 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs?v=1.5.2-h1",
+    path: "/libcurl/index.mjs?v=1.5.2-ca60",
     options: (wisp) => ({
       wisp,
       websocket: wisp,
@@ -81,7 +82,10 @@ export function isTlsHandshakeError(error: unknown): boolean {
     lower.includes("tls handshake eof") ||
     lower.includes("tls handshake") ||
     lower.includes("ssl connect error") ||
+    lower.includes("ssl peer certificate") ||
+    lower.includes("remote key was not ok") ||
     lower.includes("error code 35") ||
+    lower.includes("error code 60") ||
     lower.includes("unexpectedeof") ||
     lower.includes("unexpected eof")
   );
