@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
-  <title id="title">Bardo inverted favicon</title>
-  <desc id="desc">White folded-diamond Bardo mark on a black square background.</desc>
-  <rect width="1254" height="1254" fill="#000000"/>
+  <title id="title">Bardo favicon</title>
+  <desc id="desc">White folded-diamond Bardo mark on a transparent background.</desc>
   <path
     fill="#FFFFFF"
     fill-rule="evenodd"
