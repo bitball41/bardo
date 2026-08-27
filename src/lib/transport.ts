@@ -1,9 +1,11 @@
 /**
  * Client-side Wisp transports for Sherpa/Scramjet.
  *
- * Epoxy (rustls in WASM) is fast but a lot of CDNs RST its ClientHello, which
- * surfaces as Hyper's `tls handshake eof`. libcurl.js (mbedtls) is the
- * compatible default; epoxy stays as a fallback.
+ * libcurl.js is slower than epoxy but way less buggy — epoxy's rustls
+ * ClientHello gets RST by a lot of CDNs as Hyper's `tls handshake eof`.
+ * Pin libcurl-transport 1.x (bare-mux generation). 2.x expects iterable
+ * header pairs and throws `headers is not iterable` on this stack.
+ * Epoxy is only a last-ditch fallback if libcurl fails to load.
  */
 
 export type TransportId = "libcurl" | "epoxy";
@@ -21,7 +23,7 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs",
+    path: "/libcurl/index.mjs?v=1.5.2",
     options: (wisp) => ({ wisp }),
   },
   {

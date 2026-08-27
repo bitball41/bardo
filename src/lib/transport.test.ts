@@ -11,7 +11,7 @@ import {
 test("libcurl is the default transport, epoxy is the fallback", () => {
   assert.equal(TRANSPORTS[0]?.id, "libcurl");
   assert.equal(TRANSPORTS[1]?.id, "epoxy");
-  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs");
+  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2");
   assert.equal(TRANSPORTS[1]?.path, "/epoxy/index.mjs");
 });
 
