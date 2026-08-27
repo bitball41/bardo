@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   TRANSPORTS,
+  isRetryableLibcurlError,
   isTlsHandshakeError,
   orderedWispUrls,
   transportErrorMessage,
@@ -11,7 +12,7 @@ import {
 test("libcurl is the default transport, epoxy is the fallback", () => {
   assert.equal(TRANSPORTS[0]?.id, "libcurl");
   assert.equal(TRANSPORTS[1]?.id, "epoxy");
-  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-ca60");
+  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-e7");
   const libcurlOpts = TRANSPORTS[0].options("wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.wisp, "wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.websocket, "wss://bardo.example/wisp/");
@@ -73,6 +74,22 @@ test("isTlsHandshakeError matches Hyper/epoxy's eof wrapper", () => {
     ),
     true,
   );
+});
+
+test("isRetryableLibcurlError covers connect, timeout, and TLS codes", () => {
+  assert.equal(
+    isRetryableLibcurlError(new TypeError("Request failed with error code 7: Could not connect to server")),
+    true,
+  );
+  assert.equal(
+    isRetryableLibcurlError(new TypeError("Request failed with error code 6: Couldn't resolve host name")),
+    true,
+  );
+  assert.equal(
+    isRetryableLibcurlError(new TypeError("Request failed with error code 28: Timeout was reached")),
+    true,
+  );
+  assert.equal(isRetryableLibcurlError(new Error("connection refused")), false);
 });
 
 test("transportErrorMessage reads Error.message", () => {

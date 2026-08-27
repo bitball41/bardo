@@ -2,31 +2,45 @@
  * Bardo wrapper around Mercury's libcurl-transport (bare-mux 1.x).
  *
  * libcurl.js defaults to HTTP/2. That puts `h2` in the TLS ALPN list, which
- * a lot of CDNs (Cloudflare in particular) RST as a WASM/mbedtls fingerprint.
- * The result is CURLE_SSL_CONNECT_ERROR (35) — same class of failure as
- * epoxy's `tls handshake eof`, different lipstick.
+ * a lot of CDNs RST as CURLE_SSL_CONNECT_ERROR (35). After HTTP/1.1, the
+ * handshake can succeed and mbedtls still reject the cert (60), or the
+ * current Wisp egress can fail TCP entirely (7).
  *
- * After the handshake succeeds, mbedtls can still reject the peer cert
- * (CURLE_PEER_FAILED_VERIFICATION, 60). That happens when the current Wisp
- * egress sees a different/MITM chain than a browser would, or when mbedtls
- * chokes on Cloudflare's GTS WE1 cross-sign. Rotating egress often fixes it.
- *
- * Force HTTP/1.1, rotate Wisp on 35/60, then last-ditch epoxy on the original
- * Wisp (rustls's CA story is different from mbedtls).
+ * Failover is per-request: walk local → public Wisp on 6/7/28/35/60, one
+ * extra retry on 7 (websocket often is not up yet after a rotate), then
+ * epoxy. A failed public egress must not become the sticky default — that
+ * is how #25 turned a cert error into "could not connect to server".
  */
 import LibcurlClient from "./upstream.mjs";
 
-function isSslTransportError(error) {
-  const msg = String(error instanceof Error ? error.message : error ?? "").toLowerCase();
+function errorMessage(error) {
+  return String(error instanceof Error ? error.message : error ?? "").toLowerCase();
+}
+
+function libcurlCode(error) {
+  const match = errorMessage(error).match(/error code (\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+function isRetryableTransportError(error) {
+  const code = libcurlCode(error);
+  if (code === 6 || code === 7 || code === 28 || code === 35 || code === 52 || code === 56 || code === 60) {
+    return true;
+  }
+  const msg = errorMessage(error);
   return (
-    msg.includes("error code 35") ||
-    msg.includes("error code 60") ||
+    msg.includes("could not connect") ||
+    msg.includes("couldn't connect") ||
+    msg.includes("could not resolve") ||
+    msg.includes("couldn't resolve") ||
     msg.includes("ssl connect error") ||
     msg.includes("ssl peer certificate") ||
     msg.includes("remote key was not ok") ||
     msg.includes("tls handshake") ||
     msg.includes("unexpectedeof") ||
-    msg.includes("unexpected eof")
+    msg.includes("unexpected eof") ||
+    msg.includes("timed out") ||
+    msg.includes("timeout")
   );
 }
 
@@ -41,6 +55,8 @@ function uniqueUrls(urls) {
   return out;
 }
 
+const CONNECT_RETRY_MS = 200;
+
 export default class BardoLibcurlClient extends LibcurlClient {
   constructor(options) {
     super(options);
@@ -49,8 +65,9 @@ export default class BardoLibcurlClient extends LibcurlClient {
       ...(Array.isArray(options.fallbacks) ? options.fallbacks : []),
     ]);
     this._bardoWispIndex = 0;
-    this._rotateLock = null;
-    this._epoxy = null;
+    this._preferredIndex = 0;
+    this._switchLock = Promise.resolve();
+    this._epoxyByWisp = new Map();
   }
 
   async init() {
@@ -70,60 +87,77 @@ export default class BardoLibcurlClient extends LibcurlClient {
       });
   }
 
-  async _rotateIfStill(startIndex) {
-    if (this._rotateLock) await this._rotateLock;
-    if (this._bardoWispIndex !== startIndex) return;
-    if (this._bardoWispIndex >= this._bardoWisps.length - 1) return;
-
-    this._rotateLock = (async () => {
-      const next = this._bardoWisps[this._bardoWispIndex + 1];
-      this._bardoWispIndex += 1;
+  async _switchWisp(index) {
+    const run = this._switchLock.then(async () => {
+      if (this._bardoWispIndex === index && this.session) return;
+      const next = this._bardoWisps[index];
+      if (!next) return;
       try {
         this.session?.close();
       } catch {
         /* session may already be dead */
       }
       this.wisp = next;
-      console.warn(`[bardo] libcurl SSL failed; rotating Wisp to ${next}`);
+      this._bardoWispIndex = index;
+      console.warn(`[bardo] switching libcurl Wisp to ${next}`);
       await this.init();
-    })();
+    });
+    this._switchLock = run.catch(() => {});
+    await run;
+  }
 
+  async _requestOnce(remote, method, body, headers, signal) {
     try {
-      await this._rotateLock;
-    } finally {
-      this._rotateLock = null;
+      return await super.request(remote, method, body, headers, signal);
+    } catch (error) {
+      if (libcurlCode(error) !== 7) throw error;
+      await new Promise((resolve) => setTimeout(resolve, CONNECT_RETRY_MS));
+      return super.request(remote, method, body, headers, signal);
     }
   }
 
   async _epoxyFallback(remote, method, body, headers, signal) {
-    if (!this._epoxy) {
-      const { default: EpoxyTransport } = await import("/epoxy/index.mjs");
-      const wisp = this._bardoWisps[0];
-      this._epoxy = new EpoxyTransport({
-        wisp,
-        wisp_v2: false,
-        udp_extension_required: false,
-      });
-      await this._epoxy.init();
+    const { default: EpoxyTransport } = await import("/epoxy/index.mjs");
+    const urls = uniqueUrls([this.wisp, this._bardoWisps[this._preferredIndex], this._bardoWisps[0]]);
+    let lastError;
+    for (const wisp of urls) {
+      try {
+        let epoxy = this._epoxyByWisp.get(wisp);
+        if (!epoxy) {
+          epoxy = new EpoxyTransport({
+            wisp,
+            wisp_v2: false,
+            udp_extension_required: false,
+          });
+          await epoxy.init();
+          this._epoxyByWisp.set(wisp, epoxy);
+        }
+        console.warn(`[bardo] libcurl failed every Wisp; retrying via epoxy on ${wisp}`);
+        return await epoxy.request(remote, method, body, headers, signal);
+      } catch (error) {
+        lastError = error;
+      }
     }
-    console.warn("[bardo] libcurl SSL failed on every Wisp; retrying via epoxy");
-    return this._epoxy.request(remote, method, body, headers, signal);
+    throw lastError;
   }
 
   async request(remote, method, body, headers, signal) {
+    const count = this._bardoWisps.length || 1;
     let lastError;
-    for (let attempt = 0; attempt < this._bardoWisps.length; attempt++) {
-      const start = this._bardoWispIndex;
+    for (let step = 0; step < count; step++) {
+      const index = (this._preferredIndex + step) % count;
       try {
-        return await super.request(remote, method, body, headers, signal);
+        await this._switchWisp(index);
+        const payload = await this._requestOnce(remote, method, body, headers, signal);
+        this._preferredIndex = index;
+        return payload;
       } catch (error) {
         lastError = error;
-        if (!isSslTransportError(error)) throw error;
-        await this._rotateIfStill(start);
-        if (this._bardoWispIndex === start) break;
+        if (!isRetryableTransportError(error)) throw error;
+        console.warn(`[bardo] libcurl ${this._bardoWisps[index]} failed: ${errorMessage(error)}`);
       }
     }
-    if (lastError && isSslTransportError(lastError)) {
+    if (lastError && isRetryableTransportError(lastError)) {
       try {
         return await this._epoxyFallback(remote, method, body, headers, signal);
       } catch {

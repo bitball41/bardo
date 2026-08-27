@@ -9,9 +9,8 @@ import { PUBLIC_WISP_SERVERS } from "./constants";
  * header pairs and throws `headers is not iterable` on this stack.
  * Epoxy is only a last-ditch fallback if libcurl fails to load.
  *
- * `/libcurl/index.mjs` is Bardo's wrapper: HTTP/1.1 (so ALPN isn't `h2`,
- * which Cloudflare often RST as curl error 35), Wisp failover on 35/60,
- * then epoxy if mbedtls still hates the cert.
+ * `/libcurl/index.mjs` is Bardo's wrapper: HTTP/1.1 (so ALPN isn't `h2`),
+ * per-request Wisp failover on connect/TLS errors (6/7/28/35/60), then epoxy.
  */
 
 export type TransportId = "libcurl" | "epoxy";
@@ -29,7 +28,7 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs?v=1.5.2-ca60",
+    path: "/libcurl/index.mjs?v=1.5.2-e7",
     options: (wisp) => ({
       wisp,
       websocket: wisp,
@@ -75,7 +74,36 @@ export function orderedWispUrls(
   return out;
 }
 
+export function libcurlErrorCode(error: unknown): number | null {
+  const msg = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  const match = msg.match(/error code (\d+)/i);
+  return match ? Number(match[1]) : null;
+}
+
+export function isRetryableLibcurlError(error: unknown): boolean {
+  const code = libcurlErrorCode(error);
+  if (code === 6 || code === 7 || code === 28 || code === 35 || code === 52 || code === 56 || code === 60) {
+    return true;
+  }
+  const msg = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("could not connect") ||
+    lower.includes("couldn't connect") ||
+    lower.includes("could not resolve") ||
+    lower.includes("couldn't resolve") ||
+    lower.includes("ssl connect error") ||
+    lower.includes("ssl peer certificate") ||
+    lower.includes("remote key was not ok") ||
+    lower.includes("tls handshake") ||
+    lower.includes("unexpectedeof") ||
+    lower.includes("unexpected eof")
+  );
+}
+
 export function isTlsHandshakeError(error: unknown): boolean {
+  const code = libcurlErrorCode(error);
+  if (code === 35 || code === 60) return true;
   const msg = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
   const lower = msg.toLowerCase();
   return (
@@ -84,8 +112,6 @@ export function isTlsHandshakeError(error: unknown): boolean {
     lower.includes("ssl connect error") ||
     lower.includes("ssl peer certificate") ||
     lower.includes("remote key was not ok") ||
-    lower.includes("error code 35") ||
-    lower.includes("error code 60") ||
     lower.includes("unexpectedeof") ||
     lower.includes("unexpected eof")
   );

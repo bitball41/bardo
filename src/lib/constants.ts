@@ -3,7 +3,6 @@ import type { EngineName, Settings, TabPosition, ThemeName } from "./types";
 export const PUBLIC_WISP_SERVERS = [
   "wss://wisp.mercurywork.shop/wisp/",
   "wss://anura.pro/wisp/",
-  "wss://nebulaservices.org/wisp/",
   "wss://wisp.terbiumon.top/wisp/",
 ];
 
