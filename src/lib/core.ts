@@ -25,6 +25,7 @@ import type {
   EngineName,
   HistoryEntry,
   InternalTab,
+  RestoreTabsMode,
   Settings,
   SavedTabGroup,
   Shortcut,
@@ -88,6 +89,14 @@ export interface Snapshot {
   abBlocked: boolean;
   /** Host of the Wisp server currently in use; null for server-side engines. */
   wispUrl: string | null;
+  /** Non-null when a previous session is waiting on the restore prompt. */
+  restorePrompt: { tabCount: number } | null;
+}
+
+interface PendingSession {
+  tabs: { url: string; title?: string; favicon?: string | null; pinned?: boolean; groupId?: string | null }[];
+  active: number;
+  groups: TabGroup[];
 }
 
 class BardoCore {
@@ -125,6 +134,7 @@ class BardoCore {
   private customThemes: CustomTheme[] = loadCustomThemes();
   private tabGroups: TabGroup[] = [];
   private savedTabGroups: SavedTabGroup[] = this.loadSavedTabGroups();
+  private pendingSession: PendingSession | null = null;
 
   private listeners = new Set<() => void>();
   private snapshot: Snapshot = this.buildSnapshot();
@@ -176,13 +186,28 @@ class BardoCore {
       abLaunched: !!window.__bardoAbLaunched,
       abBlocked: !!window.__bardoAbBlocked,
       wispUrl: this.wispUrl,
+      restorePrompt: this.pendingSession
+        ? { tabCount: this.pendingSession.tabs.length }
+        : null,
     };
+  }
+
+  private normalizeRestoreTabs(value: unknown): RestoreTabsMode {
+    if (value === true) return "always";
+    if (value === false) return "never";
+    if (value === "ask" || value === "always" || value === "never") return value;
+    return DEFAULT_SETTINGS.restoreTabs;
+  }
+
+  private shouldPersistSession() {
+    return !this.settings.sessionOnly && this.settings.restoreTabs !== "never";
   }
 
   private loadSettings(): Settings {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
-      const settings = raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+      const parsed = raw ? JSON.parse(raw) : null;
+      const settings = parsed ? { ...DEFAULT_SETTINGS, ...parsed } : { ...DEFAULT_SETTINGS };
       if (!["scramjet", "klystron", "sherpa"].includes(settings.engine)) {
         settings.engine = DEFAULT_SETTINGS.engine;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -193,6 +218,7 @@ class BardoCore {
       ) {
         settings.theme = DEFAULT_SETTINGS.theme;
       }
+      settings.restoreTabs = this.normalizeRestoreTabs(parsed?.restoreTabs ?? settings.restoreTabs);
       settings.bookmarks = this.sanitizeBookmarks(settings.bookmarks);
       return settings;
     } catch {
@@ -223,6 +249,7 @@ class BardoCore {
     }
     this.settings = { ...this.settings, [key]: value };
     if (key === "sessionOnly" && value === true) {
+      this.pendingSession = null;
       this.clearSession();
       this.history = [];
       this.saveHistory();
@@ -234,8 +261,9 @@ class BardoCore {
       recordEngineRestart();
       this.initEngine();
     } else if (key === "restoreTabs") {
-      if (value) this.saveSession();
-      else this.clearSession();
+      this.pendingSession = null;
+      if (value === "never") this.clearSession();
+      else this.saveSession();
     }
     this.emit();
   }
@@ -253,7 +281,8 @@ class BardoCore {
     this.saveSettings();
     logEvent("Settings restored to defaults");
     if (this.settings.engine !== prevEngine) this.initEngine();
-    if (!this.settings.restoreTabs) this.clearSession();
+    this.pendingSession = null;
+    if (!this.shouldPersistSession()) this.clearSession();
     this.emit();
   }
 
@@ -340,7 +369,7 @@ class BardoCore {
   deleteCustomTheme(id: string) {
     this.customThemes = this.customThemes.filter((t) => t.id !== id);
     saveCustomThemes(this.customThemes);
-    if (this.settings.theme === id) this.setSetting("theme", "dark");
+    if (this.settings.theme === id) this.setSetting("theme", DEFAULT_SETTINGS.theme);
     else this.emit();
   }
 
@@ -836,7 +865,7 @@ class BardoCore {
   }
 
   private saveSession() {
-    if (this.restoring || !this.settings.restoreTabs || this.settings.sessionOnly) return;
+    if (this.restoring || !this.shouldPersistSession()) return;
     try {
       const open: { url: string; title: string; favicon: string | null; pinned: boolean; groupId: string | null }[] = [];
       let active = -1;
@@ -858,37 +887,88 @@ class BardoCore {
     } catch {
     }
   }
-  private restoreSession() {
-    let data: any = null;
-    if (this.settings.restoreTabs && !this.settings.sessionOnly) {
-      try {
-        data = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-      } catch {
-      }
+
+  private readSavedSession(): PendingSession | null {
+    if (!this.shouldPersistSession()) return null;
+    try {
+      const data = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+      if (!data || !Array.isArray(data.tabs)) return null;
+      const tabs = data.tabs
+        .filter((t: any) => t && t.url)
+        .map((t: any) => ({
+          url: String(t.url),
+          title: typeof t.title === "string" ? t.title : undefined,
+          favicon: typeof t.favicon === "string" ? t.favicon : null,
+          pinned: !!t.pinned,
+          groupId: typeof t.groupId === "string" ? t.groupId : null,
+        }));
+      if (!tabs.length) return null;
+      const groups = Array.isArray(data.groups)
+        ? data.groups
+            .filter((g: any) => g && typeof g.id === "string" && typeof g.name === "string")
+            .slice(0, 20)
+            .map((g: any) => ({
+              id: g.id.slice(0, 64),
+              name: g.name.trim().slice(0, 40) || "Tab group",
+              collapsed: !!g.collapsed,
+              color: typeof g.color === "string" && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#7c6cff",
+            }))
+        : [];
+      return {
+        tabs,
+        active: typeof data.active === "number" ? data.active : 0,
+        groups,
+      };
+    } catch {
+      return null;
     }
-    const saved =
-      data && Array.isArray(data.tabs) ? data.tabs.filter((t: any) => t && t.url) : [];
-    if (!saved.length) {
-      this.openTab();
-      return;
-    }
+  }
+
+  private applyPendingSession(session: PendingSession) {
     this.restoring = true;
-    this.tabGroups = Array.isArray(data.groups)
-      ? data.groups
-          .filter((g: any) => g && typeof g.id === "string" && typeof g.name === "string")
-          .slice(0, 20)
-          .map((g: any) => ({ id: g.id.slice(0, 64), name: g.name.trim().slice(0, 40) || "Tab group", collapsed: !!g.collapsed, color: typeof g.color === "string" && /^#[0-9a-f]{6}$/i.test(g.color) ? g.color : "#7c6cff" }))
-      : [];
-    saved.forEach((m: any) => this.openSuspendedTab(m));
+    this.tabGroups = session.groups;
+    session.tabs.forEach((m) => this.openSuspendedTab(m));
     this.pruneEmptyTabGroups();
     const idx =
-      typeof data.active === "number" && data.active >= 0 && data.active < this.tabs.length
-        ? data.active
+      typeof session.active === "number" && session.active >= 0 && session.active < this.tabs.length
+        ? session.active
         : 0;
     this.restoring = false;
     this.activateTab(this.tabs[idx].id);
-    logEvent(`Restored ${saved.length} tab${saved.length === 1 ? "" : "s"} from your last session`);
+    logEvent(`Restored ${session.tabs.length} tab${session.tabs.length === 1 ? "" : "s"} from your last session`);
     this.saveSession();
+  }
+
+  private restoreSession() {
+    const session = this.readSavedSession();
+    if (!session) {
+      this.openTab();
+      return;
+    }
+    if (this.settings.restoreTabs === "ask") {
+      this.pendingSession = session;
+      this.openTab();
+      return;
+    }
+    this.applyPendingSession(session);
+  }
+
+  acceptRestoreTabs() {
+    const session = this.pendingSession;
+    if (!session) return;
+    this.pendingSession = null;
+    for (const tab of this.tabs) tab.iframe.remove();
+    this.tabs = [];
+    this.activeTabId = null;
+    this.applyPendingSession(session);
+    this.emit();
+  }
+
+  declineRestoreTabs() {
+    if (!this.pendingSession) return;
+    this.pendingSession = null;
+    this.saveSession();
+    this.emit();
   }
 
   private applyUrlMeta(tab: InternalTab, url: string) {
@@ -1587,6 +1667,7 @@ class BardoCore {
 
   /** Forgets the saved tab session without touching history or other settings. */
   clearSavedSession() {
+    this.pendingSession = null;
     this.clearSession();
     logEvent("Saved session cleared");
     this.emit();
@@ -1594,6 +1675,7 @@ class BardoCore {
 
   clearBrowsingData() {
     this.history = [];
+    this.pendingSession = null;
     try {
       for (const key of [HISTORY_KEY, SESSION_KEY, NOTES_KEY, TODOS_KEY]) localStorage.removeItem(key);
     } catch {

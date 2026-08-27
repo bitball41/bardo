@@ -147,7 +147,7 @@ function defaultTabPosition(): TabPosition {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: "dark",
+  theme: "macchiato",
   aboutBlankMode: false,
   aboutBlankTitle: "",
   aboutBlankFavicon: "",
@@ -155,14 +155,14 @@ export const DEFAULT_SETTINGS: Settings = {
   tabCloak: "none",
   bookmarksVisible: false,
   bookmarks: [],
-  searchEngine: "startpage",
+  searchEngine: "brave",
   panicKey: "",
   panicUrl: "https://classroom.google.com",
   erudaEnabled: false,
   engine: "sherpa",
   tabPosition: defaultTabPosition(),
   ntClock: false,
-  restoreTabs: true,
+  restoreTabs: "ask",
   historyEnabled: true,
   sessionOnly: false,
   moreContrast: false,
