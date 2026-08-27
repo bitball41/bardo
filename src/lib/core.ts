@@ -53,7 +53,6 @@ import { logEvent, recordConnectionSuccess, recordEngineRestart } from "./diagno
 import { decodeDest, decodeProxyPath, encodeProxyPath, pageLabel, pathCodec } from "../../shared/url-codec";
 import {
   BAREMUX_WORKER,
-  TRANSPORT_PROBE_URL,
   TRANSPORTS,
   type TransportId,
   orderedWispUrls,
@@ -64,9 +63,6 @@ declare global {
   interface Window {
     BareMux: {
       BareMuxConnection: new (worker: string) => BareMuxConnection;
-      BareClient: new (worker?: string | Promise<MessagePort> | MessagePort) => {
-        fetch(url: string | URL, init?: RequestInit): Promise<Response>;
-      };
     };
     $scramjetLoadController: () => ScramjetControllerFactory;
     $sherpaLoadController: () => SherpaControllerFactory;
@@ -1358,37 +1354,19 @@ class BardoCore {
     });
   }
 
-  private async probeTransport(): Promise<boolean> {
-    const BareClient = window.BareMux?.BareClient;
-    if (!BareClient) return true;
-    const client = new BareClient(BAREMUX_WORKER);
-    try {
-      const result = await Promise.race([
-        client.fetch(TRANSPORT_PROBE_URL, { method: "GET", redirect: "manual" }),
-        new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error("transport probe timed out")), 10000);
-        }),
-      ]);
-      return typeof result.status === "number" && result.status > 0;
-    } catch (error) {
-      console.warn("[bardo] transport probe failed:", error);
-      return false;
-    }
-  }
-
   private async tryTransport(wispUrl: string): Promise<boolean> {
     if (!this.conn) return false;
+    // Don't HTTPS-probe via BareClient here. Its header object is a plain
+    // Record, and libcurl-transport iterates it as pairs (`for...of headers`),
+    // which throws `Headers is not iterable` and falsely fails over to epoxy.
     for (const spec of TRANSPORTS) {
       try {
         this.setStatus(`Setting up ${spec.name}…`);
         await this.conn.setTransport(spec.path, [spec.options(wispUrl)]);
-        if (await this.probeTransport()) {
-          this.wispUrl = wispUrl;
-          this.transport = spec.id;
-          logEvent(`Using ${spec.name} via ${new URL(wispUrl).hostname}`);
-          return true;
-        }
-        console.warn(`[bardo] ${spec.id} connected to Wisp but TLS probe failed`);
+        this.wispUrl = wispUrl;
+        this.transport = spec.id;
+        logEvent(`Using ${spec.name} via ${new URL(wispUrl).hostname}`);
+        return true;
       } catch (error) {
         console.warn(`[bardo] ${spec.id} transport failed:`, transportErrorMessage(error));
       }

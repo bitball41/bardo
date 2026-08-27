@@ -17,8 +17,6 @@ export interface TransportSpec {
 
 export const BAREMUX_WORKER = "/baremux/worker.js";
 
-export const TRANSPORT_PROBE_URL = "https://example.com/";
-
 export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
