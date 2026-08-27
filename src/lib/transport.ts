@@ -1,3 +1,5 @@
+import { PUBLIC_WISP_SERVERS } from "./constants";
+
 /**
  * Client-side Wisp transports for Sherpa/Scramjet.
  *
@@ -6,6 +8,9 @@
  * Pin libcurl-transport 1.x (bare-mux generation). 2.x expects iterable
  * header pairs and throws `headers is not iterable` on this stack.
  * Epoxy is only a last-ditch fallback if libcurl fails to load.
+ *
+ * `/libcurl/index.mjs` is Bardo's wrapper: HTTP/1.1 (so ALPN isn't `h2`,
+ * which Cloudflare often RST as curl error 35) plus Wisp failover.
  */
 
 export type TransportId = "libcurl" | "epoxy";
@@ -23,8 +28,13 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs?v=1.5.2",
-    options: (wisp) => ({ wisp }),
+    path: "/libcurl/index.mjs?v=1.5.2-h1",
+    options: (wisp) => ({
+      wisp,
+      websocket: wisp,
+      connections: [24, 16, 2],
+      fallbacks: PUBLIC_WISP_SERVERS.filter((url) => url !== wisp),
+    }),
   },
   {
     id: "epoxy",
@@ -70,6 +80,8 @@ export function isTlsHandshakeError(error: unknown): boolean {
   return (
     lower.includes("tls handshake eof") ||
     lower.includes("tls handshake") ||
+    lower.includes("ssl connect error") ||
+    lower.includes("error code 35") ||
     lower.includes("unexpectedeof") ||
     lower.includes("unexpected eof")
   );

@@ -130,12 +130,16 @@ app.get("/epoxy/index.mjs", cacheProxyRuntime, (_request, response) => {
   );
 });
 
-app.get("/libcurl/index.mjs", cacheProxyRuntime, (_request, response) => {
+app.get("/libcurl/upstream.mjs", cacheProxyRuntime, (_request, response) => {
   response.type("application/javascript");
   response.sendFile(
     path.join(rootDir, "node_modules/@mercuryworkshop/libcurl-transport/dist/index.mjs"),
     { cacheControl: false },
   );
+});
+app.get("/libcurl/index.mjs", cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(rootDir, "server/libcurl-client.mjs"), { cacheControl: false });
 });
 
 app.get("/sw.js", allowServiceWorker, revalidate, (_request, response) => {
