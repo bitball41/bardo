@@ -58,6 +58,7 @@ import {
   orderedWispUrls,
   transportErrorMessage,
 } from "./transport";
+import { waitForServiceWorkerActivation } from "./service-worker";
 
 declare global {
   interface Window {
@@ -1420,33 +1421,7 @@ class BardoCore {
       replacement.postMessage({ type: "SKIP_WAITING" });
     }
 
-    await new Promise<void>((resolve, reject) => {
-      let settled = false;
-      const finish = (error?: Error) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        replacement.removeEventListener("statechange", stateChanged);
-        if (error) reject(error);
-        else resolve();
-      };
-      const stateChanged = () => {
-        if (replacement.state === "installed") {
-          replacement.postMessage({ type: "SKIP_WAITING" });
-        } else if (replacement.state === "activated") {
-          finish();
-        } else if (replacement.state === "redundant") {
-          if (reg.active) finish();
-          else finish(new Error("Service worker install failed"));
-        }
-      };
-      const timeout = setTimeout(() => {
-        if (reg.active) finish();
-        else finish(new Error("Service worker activation timed out"));
-      }, 15_000);
-      replacement.addEventListener("statechange", stateChanged);
-      stateChanged();
-    });
+    await waitForServiceWorkerActivation(replacement, () => reg.active === replacement);
     return reg;
   }
 
@@ -1600,7 +1575,10 @@ class BardoCore {
       prefix: SVC_PREFIX_SHERPA,
       files: {
         wasm: SHERPA_RUNTIME.wasm,
-        all: SHERPA_RUNTIME.all,
+        // Sherpa injects `files.all` into every proxied document. This is the
+        // client-only bundle (sherpa.client.js). The host bundle (sherpa.all.js)
+        // stays on the parent chrome and sw-sherpa.js.
+        all: SHERPA_RUNTIME.client,
         sync: SHERPA_RUNTIME.sync,
       },
       globals: {

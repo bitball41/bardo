@@ -94,6 +94,9 @@ function runtimeStatic(directory: string) {
 }
 
 app.use("/sherpa/", allowServiceWorker, cacheProxyRuntime, runtimeStatic(sherpaPath));
+// Quiet aliases so proxied pages don't advertise /sherpa/. `files.all` is the
+// inject path and MUST be the client-only bundle — sherpa.all.js defines
+// $sherpaLoadController and belongs only on the parent chrome / SW.
 app.get("/scramjet/scramjet.runtime.js", allowServiceWorker, cacheProxyRuntime, (_request, response) => {
   response.type("application/javascript");
   response.sendFile(path.join(sherpaPath, "sherpa.client.js"), { cacheControl: false });
@@ -136,6 +139,10 @@ app.get("/libcurl/upstream.mjs", cacheProxyRuntime, (_request, response) => {
     path.join(rootDir, "node_modules/@mercuryworkshop/libcurl-transport/dist/index.mjs"),
     { cacheControl: false },
   );
+});
+app.get("/libcurl/libcurl-pool.mjs", cacheProxyRuntime, (_request, response) => {
+  response.type("application/javascript");
+  response.sendFile(path.join(rootDir, "server/libcurl-pool.mjs"), { cacheControl: false });
 });
 app.get("/libcurl/index.mjs", cacheProxyRuntime, (_request, response) => {
   response.type("application/javascript");

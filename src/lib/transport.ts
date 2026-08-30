@@ -29,7 +29,7 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs?v=1.5.2-recovery1",
+    path: "/libcurl/index.mjs?v=1.5.2-recovery2",
     options: (wisp) => ({
       wisp,
       websocket: wisp,

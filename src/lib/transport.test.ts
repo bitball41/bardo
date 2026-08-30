@@ -13,7 +13,7 @@ import {
 test("libcurl is the default transport, epoxy is the fallback", () => {
   assert.equal(TRANSPORTS[0]?.id, "libcurl");
   assert.equal(TRANSPORTS[1]?.id, "epoxy");
-  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-recovery1");
+  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-recovery2");
   const libcurlOpts = TRANSPORTS[0].options("wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.wisp, "wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.websocket, "wss://bardo.example/wisp/");
