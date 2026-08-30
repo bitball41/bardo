@@ -8,7 +8,7 @@
     "server": "tsx server.ts",
     "dev": "vite",
     "typecheck": "tsc -b",
-    "test": "node --import tsx --test server/proxy-shared.test.ts shared/url-codec.test.ts shared/closed-shadow.test.ts src/lib/transport.test.ts",
+    "test": "node --import tsx --test server/proxy-shared.test.ts server/libcurl-client.test.mjs shared/url-codec.test.ts shared/closed-shadow.test.ts src/lib/transport.test.ts src/lib/sherpa-runtime.test.ts src/lib/service-worker.test.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy"
@@ -25,7 +25,7 @@
     "jsdom": "^29.1.1",
     "motion": "^12.42.0",
     "preact": "^10.27.2",
-    "sherpa": "https://github.com/bitball41/sherpa/archive/fe81a4fa436baa349587943d7740030ead1dd6f6.tar.gz",
+    "sherpa": "https://github.com/bitball41/sherpa/archive/caaf5dbf0f961f11e156d467f74fba5058118be7.tar.gz",
     "tough-cookie": "^6.0.1",
     "tsx": "^4.21.0"
   },

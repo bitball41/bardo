@@ -3,18 +3,28 @@ import type { EngineName, Settings, TabPosition, ThemeName } from "./types";
 export const PUBLIC_WISP_SERVERS = [
   "wss://wisp.mercurywork.shop/wisp/",
   "wss://anura.pro/wisp/",
-  "wss://nebulaservices.org/wisp/",
   "wss://wisp.terbiumon.top/wisp/",
 ];
 
 export const SVC_PREFIX = "/scramjet/service/";
 /** Same path as Scramjet so rewritten URLs don't advertise a distinct engine. */
 export const SVC_PREFIX_SHERPA = SVC_PREFIX;
-/** Sherpa's client bundle, served under Scramjet's directory with quiet names. */
+/**
+ * Sherpa files served under Scramjet's directory so rewritten pages don't
+ * advertise a distinct engine.
+ *
+ * `client` is Sherpa `files.all` — the inject path for every proxied document.
+ * It must be sherpa.client.js. sherpa.all.js is the host bundle
+ * (`$sherpaLoadController` / `$sherpaLoadWorker`) and belongs only on the
+ * parent chrome and the service worker.
+ */
 export const SHERPA_RUNTIME = {
   wasm: "/scramjet/scramjet.runtime.wasm",
-  all: "/scramjet/scramjet.runtime.js",
+  /** sherpa.client.js — injected into proxied pages via controller `files.all`. */
+  client: "/scramjet/scramjet.runtime.js",
   sync: "/scramjet/scramjet.runtime.sync.js",
+  /** sherpa.all.js — parent chrome / service worker host bundle. */
+  host: "/scramjet/scramjet.sw.js",
 } as const;
 export const SVC_PREFIX_KLYSTRON = "/klystron/";
 

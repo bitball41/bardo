@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   TRANSPORTS,
   isTlsHandshakeError,
+  isRetryableLibcurlError,
+  libcurlErrorCode,
   orderedWispUrls,
   transportErrorMessage,
   wispUrlCandidates,
@@ -11,7 +13,7 @@ import {
 test("libcurl is the default transport, epoxy is the fallback", () => {
   assert.equal(TRANSPORTS[0]?.id, "libcurl");
   assert.equal(TRANSPORTS[1]?.id, "epoxy");
-  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-ca60");
+  assert.equal(TRANSPORTS[0]?.path, "/libcurl/index.mjs?v=1.5.2-recovery2");
   const libcurlOpts = TRANSPORTS[0].options("wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.wisp, "wss://bardo.example/wisp/");
   assert.equal(libcurlOpts.websocket, "wss://bardo.example/wisp/");
@@ -78,4 +80,12 @@ test("isTlsHandshakeError matches Hyper/epoxy's eof wrapper", () => {
 test("transportErrorMessage reads Error.message", () => {
   assert.equal(transportErrorMessage(new Error("tls handshake eof")), "tls handshake eof");
   assert.equal(transportErrorMessage("nope"), "nope");
+});
+
+test("libcurl errors expose their numeric code and retryability", () => {
+  const connect = new TypeError("Request failed with error code 7: Could not connect");
+  assert.equal(libcurlErrorCode(connect), 7);
+  assert.equal(isRetryableLibcurlError(connect), true);
+  assert.equal(isRetryableLibcurlError(new Error("error code 22: HTTP response error")), false);
+  assert.equal(isRetryableLibcurlError(new Error("connection refused")), true);
 });
