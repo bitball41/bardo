@@ -130,6 +130,8 @@ class BardoCore {
   private activeSWReg: ServiceWorkerRegistration | null = null;
   private swUpdateDebounce: ReturnType<typeof setTimeout> | null = null;
   private swUpdateScheduled = false;
+  private engineInitGeneration = 0;
+  private engineInitQueue: Promise<void> = Promise.resolve();
   private wispUrl: string | null = null;
   private transport: TransportId | null = null;
   private capabilitiesReady = false;
@@ -1405,20 +1407,45 @@ class BardoCore {
       scope,
       updateViaCache: "none",
     });
+
+    // `register()` can return an old active worker while a newly downloaded
+    // worker is still installing/waiting. Waiting only for `reg.active` in
+    // that case starts the engine against stale runtime code on first load.
+    const replacement = reg.installing ?? reg.waiting;
+    if (!replacement) {
+      if (reg.active) return reg;
+      throw new Error("No service worker found");
+    }
+    if (reg.waiting === replacement) {
+      replacement.postMessage({ type: "SKIP_WAITING" });
+    }
+
     await new Promise<void>((resolve, reject) => {
-      if (reg.active) {
-        resolve();
-        return;
-      }
-      const sw = reg.installing || reg.waiting;
-      if (!sw) {
-        reject(new Error("No service worker found"));
-        return;
-      }
-      sw.addEventListener("statechange", function (this: ServiceWorker) {
-        if (this.state === "activated") resolve();
-        if (this.state === "redundant") reject(new Error("Service worker install failed"));
-      });
+      let settled = false;
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        replacement.removeEventListener("statechange", stateChanged);
+        if (error) reject(error);
+        else resolve();
+      };
+      const stateChanged = () => {
+        if (replacement.state === "installed") {
+          replacement.postMessage({ type: "SKIP_WAITING" });
+        } else if (replacement.state === "activated") {
+          finish();
+        } else if (replacement.state === "redundant") {
+          if (reg.active) finish();
+          else finish(new Error("Service worker install failed"));
+        }
+      };
+      const timeout = setTimeout(() => {
+        if (reg.active) finish();
+        else finish(new Error("Service worker activation timed out"));
+      }, 15_000);
+      replacement.addEventListener("statechange", stateChanged);
+      stateChanged();
     });
     return reg;
   }
@@ -1440,7 +1467,22 @@ class BardoCore {
     });
   }
 
-  async initEngine(attempt = 1) {
+  private isCurrentEngineInit(generation: number, engine: EngineName) {
+    return generation === this.engineInitGeneration && engine === this.settings.engine;
+  }
+
+  async initEngine(attempt = 1, generation?: number) {
+    const initGeneration = generation ?? ++this.engineInitGeneration;
+    const engine = this.settings.engine;
+    const run = this.engineInitQueue.then(() =>
+      this.runEngineInit(attempt, initGeneration, engine),
+    );
+    this.engineInitQueue = run.catch(() => {});
+    return run;
+  }
+
+  private async runEngineInit(attempt: number, generation: number, engine: EngineName) {
+    if (!this.isCurrentEngineInit(generation, engine)) return;
     if (this.capabilitiesReady && !this.engineSupport[this.settings.engine]) {
       this.ctrlReady = false;
       this.setStatus("this engine isn't on this host.", true);
@@ -1450,18 +1492,22 @@ class BardoCore {
       this.setStatus("Service workers not supported.", true);
       return;
     }
+    this.ctrlReady = false;
+    window.__bardoCtrl = undefined;
+    this.emit();
     try {
-      if (this.settings.engine === "klystron") await this.initKlystron();
-      else if (this.settings.engine === "sherpa") await this.initSherpa();
-      else await this.initScramjet();
+      if (engine === "klystron") await this.initKlystron(generation, engine);
+      else if (engine === "sherpa") await this.initSherpa(generation, engine);
+      else await this.initScramjet(generation, engine);
     } catch (e: any) {
+      if (!this.isCurrentEngineInit(generation, engine)) return;
       console.error(`[bardo] init failed (attempt ${attempt}):`, e);
       if (attempt < 3) {
         const delay = attempt * 2000;
         this.setStatus(`Error, retrying in ${delay / 1000}s…`, true);
         logEvent(`Engine error — retrying (attempt ${attempt + 1} of 3)`, "warn");
         recordEngineRestart();
-        setTimeout(() => this.initEngine(attempt + 1), delay);
+        setTimeout(() => this.initEngine(attempt + 1, generation), delay);
       } else if (!sessionStorage.getItem("bardo-sw-fix-attempted")) {
         sessionStorage.setItem("bardo-sw-fix-attempted", "1");
         this.setStatus("Refreshing…");
@@ -1488,13 +1534,14 @@ class BardoCore {
     await this.initEngine();
   }
 
-  private async initScramjet() {
+  private async initScramjet(generation: number, engine: EngineName) {
     this.setStatus("Starting engine…");
     const [, ctrl, reg] = await Promise.all([
       this.setupTransport(),
       this.startScramjetController(),
       this.registerSW("/sw.js", SVC_PREFIX),
     ]);
+    if (!this.isCurrentEngineInit(generation, engine)) return;
     this.scheduleSWUpdate(reg);
     window.__bardoCtrl = ctrl;
     this.ctrlReady = true;
@@ -1531,13 +1578,14 @@ class BardoCore {
     return ctrl;
   }
 
-  private async initSherpa() {
+  private async initSherpa(generation: number, engine: EngineName) {
     this.setStatus("Starting engine…");
     const [, ctrl, reg] = await Promise.all([
       this.setupTransport(),
       this.startSherpaController(),
       this.registerSW("/sw-sherpa.js", SVC_PREFIX_SHERPA),
     ]);
+    if (!this.isCurrentEngineInit(generation, engine)) return;
     this.scheduleSWUpdate(reg);
     window.__bardoCtrl = ctrl;
     this.ctrlReady = true;
@@ -1602,11 +1650,12 @@ class BardoCore {
   // Klystron is a server-side proxy: the Bardo server fetches and rewrites pages,
   // so the client needs no bare-mux/wisp transport or wasm controller — just the
   // companion service worker (scoped to /klystron/) to catch runtime requests.
-  private async initKlystron() {
+  private async initKlystron(generation: number, engine: EngineName) {
     this.wispUrl = null;
     this.transport = null;
     this.setStatus("Starting Klystron…");
     const reg = await this.registerSW("/sw-klystron.js", SVC_PREFIX_KLYSTRON);
+    if (!this.isCurrentEngineInit(generation, engine)) return;
     this.scheduleSWUpdate(reg);
     window.__bardoCtrl = {
       _prefix: SVC_PREFIX_KLYSTRON,

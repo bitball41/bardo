@@ -29,7 +29,7 @@ export const TRANSPORTS: TransportSpec[] = [
   {
     id: "libcurl",
     name: "libcurl",
-    path: "/libcurl/index.mjs?v=1.5.2-ca60",
+    path: "/libcurl/index.mjs?v=1.5.2-recovery1",
     options: (wisp) => ({
       wisp,
       websocket: wisp,
@@ -75,6 +75,31 @@ export function orderedWispUrls(
   return out;
 }
 
+export function libcurlErrorCode(error: unknown): number | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const match = message.match(/(?:error|curl)\s*code\s*[:=]?\s*(\d+)/i)
+    ?? message.match(/CURLE_[A-Z_]+\s*\(?\s*(\d+)\s*\)?/i);
+  return match ? Number(match[1]) : null;
+}
+
+export function isRetryableLibcurlError(error: unknown): boolean {
+  const code = libcurlErrorCode(error);
+  if (code !== null) return [6, 7, 28, 35, 52, 56, 60].includes(code);
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("couldn't resolve host") ||
+    lower.includes("could not resolve host") ||
+    lower.includes("failed to connect") ||
+    lower.includes("connection refused") ||
+    lower.includes("operation timed out") ||
+    lower.includes("empty reply") ||
+    lower.includes("recv failure") ||
+    lower.includes("receive error") ||
+    isTlsHandshakeError(error)
+  );
+}
+
 export function isTlsHandshakeError(error: unknown): boolean {
   const msg = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
   const lower = msg.toLowerCase();
@@ -86,6 +111,8 @@ export function isTlsHandshakeError(error: unknown): boolean {
     lower.includes("remote key was not ok") ||
     lower.includes("error code 35") ||
     lower.includes("error code 60") ||
+    lower.includes("certificate verify failed") ||
+    lower.includes("peer certificate cannot be authenticated") ||
     lower.includes("unexpectedeof") ||
     lower.includes("unexpected eof")
   );
