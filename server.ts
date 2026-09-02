@@ -38,7 +38,6 @@ const csp = [
   "manifest-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",
-  "frame-ancestors 'self'",
   "form-action 'self'",
 ].join("; ");
 

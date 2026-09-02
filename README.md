@@ -108,3 +108,17 @@ is TypeScript. The production server fails fast when `dist/` has not been built.
 - `npm run typecheck` — check all TypeScript projects
 - `npm run build` — typecheck and create the production UI
 - `npm start` — run the production server
+- `npm run verify:deployment -- https://your-bardo-origin.example` — verify the
+  stable entrypoint, service workers, WASM files, proxy runtimes, and MIME types
+
+## One-file launcher
+
+`Bardo.html` is the only file an end user downloads. A click synchronously opens
+an `about:blank` tab, then places the production `/bardo.html` entrypoint in a
+full-screen unsandboxed iframe. The application remains on Bardo's HTTPS origin,
+so its service workers, IndexedDB, proxy paths, and updates continue to work.
+
+The launcher deliberately targets the full Node deployment, not a static object
+bucket. Bardo also requires `/api/capabilities`, the `/wisp/` WebSocket upgrade,
+and the Klystron server routes. The build emits `dist/bardo.html` as a stable
+alias while hashed UI assets remain cacheable.

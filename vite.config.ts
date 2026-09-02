@@ -55,6 +55,9 @@ function bardoPublicIcons(): Plugin {
         const from = path.join(root, name);
         if (existsSync(from)) copyFileSync(from, path.join(dist, name));
       }
+      // Stable remote entrypoint used by the one-file launcher. The generated
+      // document keeps root-relative runtime URLs on Bardo's HTTPS origin.
+      copyFileSync(path.join(dist, 'index.html'), path.join(dist, 'bardo.html'));
     },
   };
 }
