@@ -165,7 +165,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tabCloak: "none",
   bookmarksVisible: false,
   bookmarks: [],
-  searchEngine: "brave",
+  searchEngine: "duckduckgo",
   panicKey: "",
   panicUrl: "https://classroom.google.com",
   erudaEnabled: false,
