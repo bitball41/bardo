@@ -113,14 +113,19 @@ is TypeScript. The production server fails fast when `dist/` has not been built.
 
 ## One-file launcher
 
-`Bardo.html` is the only file an end user downloads. It immediately opens an
-`about:blank` tab, then places the production `/bardo.html` entrypoint in a
-full-screen unsandboxed iframe. If Chrome blocks the automatic popup, it loads
-Bardo directly in the launcher tab. The application remains on Bardo's HTTPS
-origin, so its service workers, IndexedDB, proxy paths, and updates continue to
-work.
+`Bardo.html` is the only file an end user downloads. It has no launch button,
+popup, redirect, `about:blank` page, or iframe around the Bardo application.
+The file imports the current UI from the stable, CORS-enabled
+`/bardo-app.js` and `/bardo-app.css` endpoints and renders it directly into the
+local document.
+
+Because a `file://` document cannot own an HTTPS service worker, normal Bardo
+browsing tabs use `/embed.html` on the production origin. That small remote tab
+controller registers Scramjet or Sherpa, owns BareMux/WASM/Wisp, and exchanges
+navigation messages with the local Bardo chrome. The iframe is the browsing tab
+Bardo already requires; the Bardo app itself is not framed.
 
 The launcher deliberately targets the full Node deployment, not a static object
 bucket. Bardo also requires `/api/capabilities`, the `/wisp/` WebSocket upgrade,
-and the Klystron server routes. The build emits `dist/bardo.html` as a stable
-alias while hashed UI assets remain cacheable.
+and the Klystron server routes. The build emits the stable loader assets and
+`dist/embed.html` while hashed UI/runtime chunks remain cacheable.

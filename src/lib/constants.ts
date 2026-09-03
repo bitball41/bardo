@@ -1,5 +1,21 @@
 import type { EngineName, Settings, TabPosition, ThemeName } from "./types";
 
+export const DEFAULT_REMOTE_ORIGIN = "https://bardo-live.cj-nissim.workers.dev";
+
+export function isSingleFileMode() {
+  return typeof location !== "undefined" && location.protocol === "file:";
+}
+
+export function remoteOrigin() {
+  const configured = typeof window !== "undefined" ? window.__BARDO_REMOTE_ORIGIN : "";
+  return (configured || DEFAULT_REMOTE_ORIGIN).replace(/\/+$/, "");
+}
+
+export function appAsset(path: string) {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return isSingleFileMode() ? remoteOrigin() + normalized : normalized;
+}
+
 export const PUBLIC_WISP_SERVERS = [
   "wss://wisp.mercurywork.shop/wisp/",
   "wss://anura.pro/wisp/",
@@ -47,7 +63,7 @@ export const ENGINES: EngineInfo[] = [
 
 export const ENGINE_BY_ID = Object.fromEntries(ENGINES.map((e) => [e.id, e])) as Record<EngineName, EngineInfo>;
 
-export const BARDO_FAVICON = "/bardo-favicon-inverted.svg";
+export const BARDO_FAVICON = appAsset("/bardo-favicon-inverted.svg");
 
 export const SEARCH_ENGINES: Record<string, (q: string) => string> = {
   duckduckgo: (q) => "https://duckduckgo.com/?q=" + encodeURIComponent(q),

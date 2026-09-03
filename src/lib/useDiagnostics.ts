@@ -12,6 +12,7 @@ import {
   TOOLBAR_KEY,
   WALLPAPER_KEY,
   WEATHER_KEY,
+  appAsset,
   type EngineInfo,
 } from "./constants";
 import {
@@ -28,7 +29,7 @@ import type { TabView } from "./types";
 
 const POLL_MS = 5000;
 const TICK_MS = 1000;
-const PING_PATH = "/shortcuts.json";
+const PING_PATH = appAsset("/shortcuts.json");
 const LATENCY_WARN_MS = 900;
 const STORAGE_WARN_RATIO = 0.9;
 

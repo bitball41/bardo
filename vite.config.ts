@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import preact from '@preact/preset-vite';
 import tailwindcss from '@tailwindcss/vite';
-import { copyFileSync, createReadStream, existsSync } from 'node:fs';
+import { copyFileSync, createReadStream, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const EXPRESS = 'http://localhost:8080';
@@ -58,6 +58,22 @@ function bardoPublicIcons(): Plugin {
       // Stable remote entrypoint used by the one-file launcher. The generated
       // document keeps root-relative runtime URLs on Bardo's HTTPS origin.
       copyFileSync(path.join(dist, 'index.html'), path.join(dist, 'bardo.html'));
+      copyFileSync(path.resolve(__dirname, 'Bardo.html'), path.join(dist, 'Bardo.html'));
+
+      // The downloaded Bardo.html imports these two stable, no-cache URLs.
+      // The tiny JS shim points at Vite's hashed entry, whose relative dynamic
+      // imports continue to resolve on the remote HTTPS origin.
+      const html = readFileSync(path.join(dist, 'index.html'), 'utf8');
+      const entry = html.match(/<script type="module"[^>]*src="([^"]+)"/i)?.[1];
+      const css = Array.from(html.matchAll(/<link rel="stylesheet"[^>]*href="([^"]+)"/gi))
+        .map((match) => match[1])
+        .find((href) => href.startsWith('/assets/'));
+      if (!entry || !css) throw new Error('Could not find Vite entry assets');
+      writeFileSync(path.join(dist, 'bardo-app.js'), `import ${JSON.stringify(entry)};\n`);
+      writeFileSync(
+        path.join(dist, 'bardo-app.css'),
+        `@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@400..800&display=swap");\n@import url(${JSON.stringify(css)});\n`,
+      );
     },
   };
 }
@@ -84,5 +100,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        index: path.resolve(__dirname, 'index.html'),
+        embed: path.resolve(__dirname, 'embed.html'),
+      },
+    },
   },
 });

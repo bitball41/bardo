@@ -216,6 +216,7 @@ export interface InternalTab {
 
 declare global {
   interface Window {
+    __BARDO_REMOTE_ORIGIN?: string;
     __bardoAbLaunched?: boolean;
     __bardoAbBlocked?: boolean;
     __bardoLaunchAboutBlank?: (src?: string, options?: { title?: string; favicon?: string }) => boolean;
