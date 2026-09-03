@@ -1,8 +1,8 @@
 # Bardo single-file launcher deployment
 
 The end-user artifact is the root-level `Bardo.html`. It contains no bundled
-application code or dependencies. On a click it opens an `about:blank` window
-and creates one full-viewport, unsandboxed iframe whose source is:
+application code or dependencies. As soon as it loads, it opens an `about:blank`
+window and creates one full-viewport, unsandboxed iframe whose source is:
 
 ```text
 https://bardo-live.cj-nissim.workers.dev/bardo.html
@@ -11,6 +11,10 @@ https://bardo-live.cj-nissim.workers.dev/bardo.html
 The Vite production build copies its generated `index.html` to
 `dist/bardo.html`. All Bardo runtime URLs remain root-relative, so the UI,
 workers, storage, and proxy frames retain the production HTTPS origin.
+
+Browsers may reject an automatic popup when opening a local file does not carry
+user activation. In that case the launcher automatically replaces its own tab
+with the same production entrypoint; there is no launch button.
 
 ## Required production routes
 

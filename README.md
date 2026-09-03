@@ -113,10 +113,12 @@ is TypeScript. The production server fails fast when `dist/` has not been built.
 
 ## One-file launcher
 
-`Bardo.html` is the only file an end user downloads. A click synchronously opens
-an `about:blank` tab, then places the production `/bardo.html` entrypoint in a
-full-screen unsandboxed iframe. The application remains on Bardo's HTTPS origin,
-so its service workers, IndexedDB, proxy paths, and updates continue to work.
+`Bardo.html` is the only file an end user downloads. It immediately opens an
+`about:blank` tab, then places the production `/bardo.html` entrypoint in a
+full-screen unsandboxed iframe. If Chrome blocks the automatic popup, it loads
+Bardo directly in the launcher tab. The application remains on Bardo's HTTPS
+origin, so its service workers, IndexedDB, proxy paths, and updates continue to
+work.
 
 The launcher deliberately targets the full Node deployment, not a static object
 bucket. Bardo also requires `/api/capabilities`, the `/wisp/` WebSocket upgrade,
