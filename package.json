@@ -8,9 +8,10 @@
     "server": "tsx server.ts",
     "dev": "vite",
     "typecheck": "tsc -b",
-    "test": "node --import tsx --test server/proxy-shared.test.ts server/libcurl-client.test.mjs shared/url-codec.test.ts shared/closed-shadow.test.ts src/lib/transport.test.ts src/lib/sherpa-runtime.test.ts src/lib/service-worker.test.ts",
+    "test": "node --import tsx --test server/proxy-shared.test.ts server/libcurl-client.test.mjs shared/url-codec.test.ts shared/closed-shadow.test.ts src/lib/transport.test.ts src/lib/sherpa-runtime.test.ts src/lib/service-worker.test.ts src/lib/launcher.test.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "verify:deployment": "node scripts/verify-deployment.mjs",
     "deploy": "vite build && wrangler deploy"
   },
   "dependencies": {
