@@ -3,48 +3,65 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { DEFAULT_SETTINGS } from "./constants.ts";
 
-const launcher = readFileSync(new URL("../../Bardo.html", import.meta.url), "utf8");
-const index = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
-const server = readFileSync(new URL("../../server.ts", import.meta.url), "utf8");
-const main = readFileSync(new URL("../main.tsx", import.meta.url), "utf8");
-const vite = readFileSync(new URL("../../vite.config.ts", import.meta.url), "utf8");
+const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+const launcher = read("../../Bardo.html");
+const embedHtml = read("../../embed.html");
+const embed = read("../embed.ts");
+const remote = read("./remote-controller.ts");
+const core = read("./core.ts");
+const server = read("../../server.ts");
+const vite = read("../../vite.config.ts");
 
-test("launcher automatically opens about:blank and frames the stable HTTPS entrypoint", () => {
-  assert.match(launcher, /window\.open\("about:blank","_blank"\)/);
-  assert.match(launcher, /const launch=\(\)=>\{/);
-  assert.match(launcher, /\n\s*launch\(\);\s*\n/);
-  assert.match(launcher, /https:\/\/bardo-live\.cj-nissim\.workers\.dev\/bardo\.html/);
-  assert.match(launcher, /doc\.createElement\("iframe"\)/);
-  assert.doesNotMatch(launcher, /document\.write|fetch\s*\(/);
-  assert.doesNotMatch(launcher, /<button|addEventListener\("click"/);
-  assert.doesNotMatch(launcher, /sandbox\s*=/i);
+test("Bardo.html directly loads the current Bardo UI without a redirect or wrapper iframe", () => {
+  assert.match(launcher, /<div id="root"><\/div>/);
+  assert.match(launcher, /https:\/\/bardo-live\.cj-nissim\.workers\.dev\/bardo-app\.js/);
+  assert.match(launcher, /https:\/\/bardo-live\.cj-nissim\.workers\.dev\/bardo-app\.css/);
+  assert.doesNotMatch(launcher, /<iframe|about:blank|window\.open|location\.replace|document\.write|http-equiv="refresh"/i);
 });
 
-test("blocked automatic popups fall back to Bardo in the launcher tab", () => {
-  assert.match(launcher, /if\(!popup\)[\s\S]*?location\.replace\(REMOTE\)/);
+test("the one-file loader has a restrictive policy and a visible network error", () => {
+  assert.match(launcher, /Content-Security-Policy/);
+  assert.match(launcher, /frame-src https:\/\/bardo-live\.cj-nissim\.workers\.dev/);
+  assert.match(launcher, /Bardo could not load\. Check your connection/);
+  assert.match(launcher, /crossorigin="anonymous"/);
 });
 
-test("launcher delegates useful iframe permissions and waits for Bardo readiness", () => {
+test("file mode routes Bardo tabs through the remote HTTPS embed controller", () => {
+  assert.match(core, /isSingleFileMode\(\)[\s\S]*?initRemoteEngine/);
+  assert.match(core, /new RemoteController\(engine\)/);
+  assert.match(remote, /\/embed\.html\?/);
+  assert.match(remote, /bardo-embed:command/);
+  assert.match(remote, /event\.origin !== remoteOrigin\(\)/);
+  assert.match(remote, /event\.source !== this\.iframe\.contentWindow/);
+});
+
+test("the embed owns the remotely hosted proxy runtimes and service workers", () => {
+  assert.match(embedHtml, /id="proxy-frame"/);
+  assert.match(embedHtml, /src="\/sherpa\/sherpa\.all\.js"/);
+  assert.match(embedHtml, /src="\/scramjet\/scramjet\.all\.js"/);
+  assert.match(embedHtml, /src="\/baremux\/index\.js"/);
+  assert.match(embed, /registerWorker\("\/sw\.js", SVC_PREFIX\)/);
+  assert.match(embed, /registerWorker\("\/sw-sherpa\.js", SVC_PREFIX_SHERPA\)/);
+  assert.match(embed, /new window\.BareMux\.BareMuxConnection\(BAREMUX_WORKER\)/);
+  assert.match(embed, /TRANSPORTS/);
+  assert.match(embed, /PUBLIC_WISP_SERVERS/);
+  assert.match(embed, /SVC_PREFIX_KLYSTRON/);
+});
+
+test("tab frames delegate the permissions Bardo reasonably needs", () => {
   for (const permission of ["autoplay", "clipboard-read", "clipboard-write", "fullscreen", "gamepad", "picture-in-picture"]) {
-    assert.match(launcher, new RegExp(permission));
+    assert.match(core, new RegExp(permission));
   }
-  assert.match(launcher, /frame\.allowFullscreen=true/);
-  assert.match(launcher, /event\.source!==frame\.contentWindow/);
-  assert.match(launcher, /event\.origin!==ORIGIN/);
-  assert.match(launcher, /event\.data\?\.type!=="bardo:ready"/);
-  assert.match(launcher, /setTimeout\(\(\)=>\{[\s\S]*?window\.close\(\)[\s\S]*?location\.replace\("about:blank"\)[\s\S]*?\},3000\)/);
-  assert.match(main, /window\.parent\.postMessage\(\{ type: "bardo:ready", version: 1 \}, "\*"\)/);
+  assert.match(core, /iframe\.allowFullscreen = true/);
 });
 
-test("Bardo can be embedded while retaining its own restrictive application CSP", () => {
-  assert.doesNotMatch(index, /frame-ancestors/);
-  assert.doesNotMatch(server, /frame-ancestors/);
-  assert.match(index, /object-src 'none'/);
-  assert.match(server, /"object-src 'none'"/);
-});
-
-test("production build emits the stable remote bardo.html alias", () => {
-  assert.match(vite, /copyFileSync\(path\.join\(dist, 'index\.html'\), path\.join\(dist, 'bardo\.html'\)\)/);
+test("production emits stable loader assets and makes them CORS-readable", () => {
+  assert.match(vite, /bardo-app\.js/);
+  assert.match(vite, /bardo-app\.css/);
+  assert.match(vite, /path\.join\(dist, 'Bardo\.html'\)/);
+  assert.match(vite, /embed: path\.resolve\(__dirname, 'embed\.html'\)/);
+  assert.match(server, /Access-Control-Allow-Origin", "\*"/);
+  assert.match(server, /Cross-Origin-Resource-Policy", "cross-origin"/);
 });
 
 test("fresh Bardo profiles default to DuckDuckGo", () => {

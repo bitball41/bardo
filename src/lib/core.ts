@@ -18,6 +18,9 @@ import {
   SHERPA_RUNTIME,
   THEMES,
   TODOS_KEY,
+  appAsset,
+  isSingleFileMode,
+  remoteOrigin,
 } from "./constants";
 import type {
   Bookmark,
@@ -59,6 +62,7 @@ import {
   transportErrorMessage,
 } from "./transport";
 import { waitForServiceWorkerActivation } from "./service-worker";
+import { RemoteController } from "./remote-controller";
 
 declare global {
   interface Window {
@@ -410,7 +414,10 @@ class BardoCore {
     };
 
     try {
-      const response = await fetch("/api/capabilities", {
+      const capabilitiesUrl = isSingleFileMode()
+        ? `${remoteOrigin()}/api/capabilities`
+        : "/api/capabilities";
+      const response = await fetch(capabilitiesUrl, {
         cache: "no-store",
         headers: { accept: "application/json" },
       });
@@ -462,6 +469,8 @@ class BardoCore {
     const iframe = document.createElement("iframe");
     iframe.className = "nav-frame";
     iframe.hidden = true;
+    iframe.allow = "autoplay; clipboard-read; clipboard-write; fullscreen; gamepad; picture-in-picture";
+    iframe.allowFullscreen = true;
     iframe.setAttribute(
       "sandbox",
       "allow-same-origin allow-scripts allow-forms allow-popups allow-modals " +
@@ -1092,7 +1101,7 @@ class BardoCore {
     if (tab.inPageNavCount > 0) {
       tab.inPageNavCount--;
       tab.frame?.back();
-      tab.iframe.contentWindow?.history?.back();
+      if (!isSingleFileMode()) tab.iframe.contentWindow?.history?.back();
     } else if (tab.navCount > 0) {
       tab.homeBackUrl = tab.url;
       tab.url = "";
@@ -1112,7 +1121,7 @@ class BardoCore {
       this.navigate(tab.homeBackUrl);
     } else {
       tab.frame?.forward();
-      tab.iframe.contentWindow?.history?.forward();
+      if (!isSingleFileMode()) tab.iframe.contentWindow?.history?.forward();
     }
   }
 
@@ -1463,6 +1472,10 @@ class BardoCore {
       this.setStatus("this engine isn't on this host.", true);
       return;
     }
+    if (isSingleFileMode()) {
+      await this.initRemoteEngine(generation, engine);
+      return;
+    }
     if (!("serviceWorker" in navigator)) {
       this.setStatus("Service workers not supported.", true);
       return;
@@ -1521,6 +1534,19 @@ class BardoCore {
     window.__bardoCtrl = ctrl;
     this.ctrlReady = true;
     sessionStorage.removeItem("bardo-sw-fix-attempted");
+    this.setStatus("");
+    this.flushPending();
+  }
+
+  private async initRemoteEngine(generation: number, engine: EngineName) {
+    this.wispUrl = null;
+    this.transport = null;
+    this.setStatus("Connecting to Bardo…");
+    const controller = new RemoteController(engine);
+    await controller.init();
+    if (!this.isCurrentEngineInit(generation, engine)) return;
+    window.__bardoCtrl = controller;
+    this.ctrlReady = true;
     this.setStatus("");
     this.flushPending();
   }
@@ -1662,7 +1688,7 @@ class BardoCore {
     this.setStatus("Clearing cache…");
     logEvent("Clearing cache and restarting Bardo…", "warn");
     recordEngineRestart();
-    for (const reg of await navigator.serviceWorker.getRegistrations()) {
+    for (const reg of await navigator.serviceWorker?.getRegistrations?.() ?? []) {
       if (
         reg.scope.includes(SVC_PREFIX) ||
         reg.scope.includes("/sherpa/service/") ||
@@ -1800,7 +1826,7 @@ class BardoCore {
       console.error("[bardo] failed to read saved shortcuts:", e);
     }
     try {
-      const resp = await fetch("/shortcuts.json");
+      const resp = await fetch(appAsset("/shortcuts.json"));
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
       this.shortcuts = Array.isArray(data) ? data.filter((s: any) => s.url) : [];

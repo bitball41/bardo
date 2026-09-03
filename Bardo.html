@@ -1,60 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Bardo Launcher</title>
-  <style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#08080a;color:#aaa;font:15px system-ui,sans-serif}.error{color:#ff8585}</style>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://bardo-live.cj-nissim.workers.dev; style-src 'unsafe-inline' https://bardo-live.cj-nissim.workers.dev https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https: wss:; frame-src https://bardo-live.cj-nissim.workers.dev; img-src data: blob: https:; media-src blob: https:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Bardo</title>
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="https://bardo-live.cj-nissim.workers.dev/bardo-favicon-inverted.svg">
+  <link rel="preconnect" href="https://bardo-live.cj-nissim.workers.dev" crossorigin>
+  <link rel="stylesheet" href="https://bardo-live.cj-nissim.workers.dev/bardo-app.css" crossorigin="anonymous">
+  <style>html,body,#root{width:100%;height:100%;margin:0;background:#000;color:#fff}#boot{position:fixed;inset:0;display:grid;place-items:center;font:14px system-ui,sans-serif}</style>
 </head>
 <body>
-  <p id="status">Opening Bardo…</p>
-  <script>
-    (()=>{
-      const REMOTE="https://bardo-live.cj-nissim.workers.dev/bardo.html",ORIGIN=new URL(REMOTE).origin;
-      const status=document.getElementById("status");
-      const setStatus=(text,error=false)=>{status.textContent=text;status.className=error?"error":""};
-
-      const launch=()=>{
-        // Run immediately while Chrome can still inherit user activation from
-        // opening the local file. If it declines the popup, use this tab.
-        const popup=window.open("about:blank","_blank");
-        if(!popup){setStatus("Popup blocked. Opening Bardo here…",true);setTimeout(()=>location.replace(REMOTE),500);return}
-
-        const doc=popup.document;
-        doc.title="Bardo";
-        doc.documentElement.style.cssText="width:100%;height:100%;margin:0;background:#000;overflow:hidden";
-        doc.body.style.cssText="width:100%;height:100%;margin:0;background:#000;overflow:hidden";
-
-        const note=doc.createElement("div");
-        note.textContent="Loading Bardo…";
-        note.style.cssText="position:fixed;inset:0;display:grid;place-items:center;z-index:2;background:#08080a;color:#aaa;font:15px system-ui,sans-serif";
-
-        const frame=doc.createElement("iframe");
-        frame.src=REMOTE;
-        frame.title="Bardo";
-        frame.referrerPolicy="no-referrer";
-        frame.allow="autoplay; clipboard-read; clipboard-write; fullscreen; gamepad; picture-in-picture";
-        frame.allowFullscreen=true;
-        frame.style.cssText="display:block;width:100%;height:100%;margin:0;border:0;overflow:hidden";
-        doc.body.replaceChildren(frame,note);
-
-        let finished=false,timeout=0;
-        const fail=(message)=>{if(finished)return;finished=true;clearTimeout(timeout);note.textContent=message;note.style.color="#ff8585";setStatus("Bardo could not start. Opening it here…",true);setTimeout(()=>{try{popup.close()}catch{}location.replace(REMOTE)},500)};
-        frame.addEventListener("error",()=>fail("Bardo could not be loaded. Opening it in the launcher tab…"));
-        frame.addEventListener("load",()=>{if(!finished)note.textContent="Starting Bardo…"});
-        popup.addEventListener("message",event=>{
-          if(finished||event.source!==frame.contentWindow||event.origin!==ORIGIN||event.data?.type!=="bardo:ready")return;
-          finished=true;clearTimeout(timeout);note.remove();setStatus("Bardo launched.");
-          setTimeout(()=>{
-            try{window.close()}catch{}
-            setTimeout(()=>{if(!window.closed)location.replace("about:blank")},250);
-          },3000);
-        });
-        timeout=setTimeout(()=>fail("Bardo took too long to start. Opening it in the launcher tab…"),20000);
-      };
-
-      launch();
-    })();
-  </script>
+  <div id="root"></div><div id="boot">Loading Bardo…</div>
+  <script>window.__BARDO_REMOTE_ORIGIN="https://bardo-live.cj-nissim.workers.dev"</script>
+  <script type="module" src="https://bardo-live.cj-nissim.workers.dev/bardo-app.js" crossorigin="anonymous" onerror="document.getElementById('boot').textContent='Bardo could not load. Check your connection and reopen this file.'"></script>
 </body>
 </html>

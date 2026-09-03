@@ -1,7 +1,11 @@
 const origin = new URL(process.argv[2] || process.env.BARDO_ORIGIN || "http://127.0.0.1:8080");
 
 const checks = [
+  ["/Bardo.html", "text/html", "bardo-app.js"],
   ["/bardo.html", "text/html", "Bardo"],
+  ["/embed.html", "text/html", "proxy-frame"],
+  ["/bardo-app.js", "javascript", "import"],
+  ["/bardo-app.css", "text/css", "@import"],
   ["/api/capabilities", "application/json", '"browsing":true'],
   ["/sw.js", "javascript", "$scramjetLoadWorker"],
   ["/sw-sherpa.js", "javascript", "$sherpaLoadWorker"],
@@ -42,7 +46,9 @@ for (const [path, expectedType, needle] of checks) {
     const body = new Uint8Array(await response.arrayBuffer());
     const text = needle ? new TextDecoder().decode(body) : "";
     const swHeaderOk = !path.startsWith("/sw") || response.headers.get("service-worker-allowed") === "/";
-    const ok = response.ok && type.includes(expectedType) && (!needle || text.includes(needle)) && swHeaderOk;
+    const corsRequired = path === "/bardo-app.js" || path === "/bardo-app.css" || path === "/api/capabilities" || path === "/shortcuts.json";
+    const corsOk = !corsRequired || response.headers.get("access-control-allow-origin") === "*";
+    const ok = response.ok && type.includes(expectedType) && (!needle || text.includes(needle)) && swHeaderOk && corsOk;
     console.log(`${ok ? "PASS" : "FAIL"} ${path} ${response.status} ${type} ${body.byteLength}b`);
     if (!ok) failures++;
   } catch (error) {

@@ -20,6 +20,23 @@ if ("allow_loopback_ips" in wisp.options) wisp.options.allow_loopback_ips = fals
 
 app.use(compression());
 
+// Bardo.html runs as a file:// document and imports the current UI from these
+// stable endpoints. Module scripts and fetches from an opaque file origin need
+// explicit CORS; CORP keeps the assets usable if the outer page is isolated.
+app.use((request, response, next) => {
+  const publicLoaderAsset =
+    request.path === "/bardo-app.js" ||
+    request.path === "/bardo-app.css" ||
+    request.path === "/shortcuts.json" ||
+    request.path === "/api/capabilities" ||
+    request.path.startsWith("/assets/");
+  if (publicLoaderAsset) {
+    response.setHeader("Access-Control-Allow-Origin", "*");
+    response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+  next();
+});
+
 // Klystron is a server-side proxy: it serves rewritten remote pages from
 // Bardo's own origin, so it must run ahead of the global security headers
 // below (a strict CSP + no-referrer would break proxied content). It sets
